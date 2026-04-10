@@ -19,8 +19,13 @@ def init_db():
             done        BOOLEAN DEFAULT FALSE,
             category    TEXT,
             priority    TEXT,
+            deadline    TIMESTAMP,
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    ''')
+    # Safe migration: add column if table already existed without it
+    cur.execute('''
+        ALTER TABLE todos ADD COLUMN IF NOT EXISTS deadline TIMESTAMP
     ''')
     conn.commit()
     cur.close()

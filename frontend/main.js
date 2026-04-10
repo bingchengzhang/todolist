@@ -1,28 +1,106 @@
 const API = '/api/todos';
 
-const input       = document.getElementById('todo-input');
-const addBtn      = document.getElementById('add-btn');
-const inputErr    = document.getElementById('input-error');
-const todoList    = document.getElementById('todo-list');
-const doneList    = document.getElementById('done-list');
-const doneCount   = document.getElementById('done-count');
-const headerCount = document.getElementById('header-count');
-const emptyHint   = document.getElementById('empty-hint');
-const doneToggle  = document.getElementById('done-toggle');
+const input         = document.getElementById('todo-input');
+const addBtn        = document.getElementById('add-btn');
+const inputErr      = document.getElementById('input-error');
+const deadlineInput = document.getElementById('deadline-input');
+const clearDl       = document.getElementById('clear-deadline');
+const todoList      = document.getElementById('todo-list');
+const doneList      = document.getElementById('done-list');
+const doneCount     = document.getElementById('done-count');
+const headerCount   = document.getElementById('header-count');
+const emptyHint     = document.getElementById('empty-hint');
+const doneToggle    = document.getElementById('done-toggle');
 
-// ── PWA ──────────────────────────────────────────────────────────────────────
+// ── Particles ─────────────────────────────────────────────────────────────────
+(function initParticles() {
+  const canvas = document.getElementById('particles');
+  const ctx    = canvas.getContext('2d');
+  const pts    = [];
+  const COLORS = ['124,111,247', '167,139,250', '99,102,241', '196,181,253'];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  function make() {
+    return {
+      x:  Math.random() * canvas.width,
+      y:  Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.22,
+      vy: -(Math.random() * 0.30 + 0.06),
+      r:  Math.random() * 1.6 + 0.3,
+      a:  Math.random() * 0.30 + 0.06,
+      c:  COLORS[Math.floor(Math.random() * COLORS.length)],
+    };
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 60; i++) pts.push(make());
+
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of pts) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -6)                 { p.y = canvas.height + 6; p.x = Math.random() * canvas.width; }
+      if (p.x < -6)                   p.x = canvas.width + 6;
+      if (p.x > canvas.width + 6)    p.x = -6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.c},${p.a})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+// ── PWA ───────────────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').catch(() => {});
 }
 
-// ── Completed section toggle ──────────────────────────────────────────────────
+// ── Deadline input helpers ─────────────────────────────────────────────────────
+deadlineInput.addEventListener('change', () => {
+  clearDl.classList.toggle('hidden', !deadlineInput.value);
+});
+clearDl.addEventListener('click', () => {
+  deadlineInput.value = '';
+  clearDl.classList.add('hidden');
+});
+
+function deadlineStatus(isoStr) {
+  if (!isoStr) return null;
+  const diff = new Date(isoStr) - Date.now();
+  if (diff < 0)                        return 'expired';
+  if (diff < 24 * 60 * 60 * 1000)     return 'urgent';
+  return 'ok';
+}
+
+function formatDeadline(isoStr) {
+  if (!isoStr) return null;
+  const dt      = new Date(isoStr);
+  const now     = new Date();
+  const today   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow= new Date(today.getTime() + 86400000);
+  const dlDay   = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const time    = dt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  if (dlDay.getTime() === today.getTime())    return `今天 ${time}`;
+  if (dlDay.getTime() === tomorrow.getTime()) return `明天 ${time}`;
+  return `${dt.getMonth()+1}月${dt.getDate()}日 ${time}`;
+}
+
+// ── Completed section toggle ───────────────────────────────────────────────────
 doneToggle.addEventListener('click', () => {
   const expanded = doneToggle.getAttribute('aria-expanded') === 'true';
   doneToggle.setAttribute('aria-expanded', String(!expanded));
   doneList.classList.toggle('collapsed', expanded);
 });
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
+// ── Load todos ─────────────────────────────────────────────────────────────────
 async function loadTodos() {
   try {
     const res  = await fetch(`${API}/`);
@@ -46,27 +124,30 @@ function updateCounts(active, completed) {
   emptyHint.classList.toggle('hidden', active > 0);
 }
 
-// ── Build card ────────────────────────────────────────────────────────────────
+// ── Build card ─────────────────────────────────────────────────────────────────
 function buildItem(todo, loading = false) {
   const li = document.createElement('li');
-  li.className = 'todo-item' + (todo.done ? ' done' : '') + (todo.priority ? ` priority-${todo.priority}` : '');
+  const status = deadlineStatus(todo.deadline);
+
+  li.className = 'todo-item'
+    + (todo.done     ? ' done'                  : '')
+    + (todo.priority ? ` priority-${todo.priority}` : '');
+
+  if (!todo.done && status === 'urgent')  li.classList.add('deadline-urgent');
+  if (!todo.done && status === 'expired') li.classList.add('deadline-expired');
   li.dataset.id = todo.id;
 
   // Checkbox
   const checkWrap = document.createElement('label');
   checkWrap.className = 'check-wrap';
-
   const cb = document.createElement('input');
-  cb.type    = 'checkbox';
-  cb.checked = todo.done;
+  cb.type = 'checkbox'; cb.checked = todo.done;
   cb.addEventListener('change', () => toggleDone(todo.id, cb.checked, li));
-
   const circle = document.createElement('span');
   circle.className = 'check-circle';
   circle.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"
     stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="20 6 9 17 4 12"/></svg>`;
-
   checkWrap.appendChild(cb);
   checkWrap.appendChild(circle);
 
@@ -83,7 +164,7 @@ function buildItem(todo, loading = false) {
 
   if (loading) {
     const tag = document.createElement('span');
-    tag.className   = 'loading-tag';
+    tag.className = 'loading-tag';
     tag.textContent = 'AI 分析中';
     meta.appendChild(tag);
   } else {
@@ -92,6 +173,13 @@ function buildItem(todo, loading = false) {
       cat.className   = 'badge badge-category';
       cat.textContent = todo.category;
       meta.appendChild(cat);
+    }
+
+    if (todo.deadline) {
+      const dl = document.createElement('span');
+      dl.className = `badge badge-deadline${status === 'urgent' ? ' urgent' : status === 'expired' ? ' expired' : ''}`;
+      dl.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${formatDeadline(todo.deadline)}`;
+      meta.appendChild(dl);
     }
 
     const sel = document.createElement('select');
@@ -105,14 +193,13 @@ function buildItem(todo, loading = false) {
     });
     sel.addEventListener('change', async () => {
       const p = sel.value;
-      // Update glow class on card
       li.classList.remove('priority-高', 'priority-中', 'priority-低');
       li.classList.add(`priority-${p}`);
       sel.className = `priority-select priority-select-${p}`;
       await fetch(`${API}/${todo.id}`, {
-        method:  'PATCH',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ priority: p }),
+        body: JSON.stringify({ priority: p }),
       });
     });
     sel.addEventListener('click', e => e.stopPropagation());
@@ -120,12 +207,11 @@ function buildItem(todo, loading = false) {
   }
 
   body.appendChild(textEl);
-  if (loading || todo.category || todo.priority) body.appendChild(meta);
+  body.appendChild(meta);
 
-  // Delete button
+  // Delete
   const del = document.createElement('button');
   del.className = 'delete-btn';
-  del.title     = '删除';
   del.setAttribute('aria-label', '删除');
   del.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -140,12 +226,13 @@ function buildItem(todo, loading = false) {
   return li;
 }
 
-// ── Add ───────────────────────────────────────────────────────────────────────
+// ── Add todo ───────────────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addTodo);
 input.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
 async function addTodo() {
-  const text = input.value.trim();
+  const text     = input.value.trim();
+  const deadline = deadlineInput.value || null;
   inputErr.classList.add('hidden');
 
   if (!text) { showError('请输入任务内容'); return; }
@@ -153,8 +240,10 @@ async function addTodo() {
 
   addBtn.disabled = true;
   input.value = '';
+  deadlineInput.value = '';
+  clearDl.classList.add('hidden');
 
-  const placeholder = buildItem({ id: 0, text, done: false, category: '', priority: '中' }, true);
+  const placeholder = buildItem({ id: 0, text, done: false, category: '', priority: '中', deadline }, true);
   todoList.prepend(placeholder);
   emptyHint.classList.add('hidden');
   headerCount.textContent = `${todoList.children.length} 项`;
@@ -163,18 +252,16 @@ async function addTodo() {
     const res  = await fetch(`${API}/`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ text }),
+      body:    JSON.stringify({ text, deadline }),
     });
     const data = await res.json();
-
     if (!res.ok) {
       showError(data.error || '添加失败');
       placeholder.remove();
       recalcCounts();
       return;
     }
-
-    const real = buildItem({ id: data.id, text, done: false, category: data.category, priority: data.priority });
+    const real = buildItem({ id: data.id, text, done: false, category: data.category, priority: data.priority, deadline });
     placeholder.replaceWith(real);
   } catch {
     showError('网络错误，请重试');
@@ -185,10 +272,9 @@ async function addTodo() {
   }
 }
 
-// ── Toggle done ───────────────────────────────────────────────────────────────
+// ── Toggle done ────────────────────────────────────────────────────────────────
 async function toggleDone(id, done, li) {
   if (done) {
-    // Dissolve animation before moving to done list
     li.classList.add('dissolving');
     await new Promise(r => setTimeout(r, 360));
   }
@@ -202,7 +288,7 @@ async function toggleDone(id, done, li) {
   loadTodos();
 }
 
-// ── Delete ────────────────────────────────────────────────────────────────────
+// ── Delete ─────────────────────────────────────────────────────────────────────
 async function removeTodo(id, li) {
   li.classList.add('removing');
   await new Promise(r => setTimeout(r, 200));
@@ -211,15 +297,17 @@ async function removeTodo(id, li) {
   try { await fetch(`${API}/${id}`, { method: 'DELETE' }); } catch {}
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function showError(msg) {
   inputErr.textContent = msg;
   inputErr.classList.remove('hidden');
 }
-
 function recalcCounts() {
   updateCounts(todoList.children.length, doneList.children.length);
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Refresh deadline highlights every minute ───────────────────────────────────
+setInterval(loadTodos, 60000);
+
+// ── Init ───────────────────────────────────────────────────────────────────────
 loadTodos();

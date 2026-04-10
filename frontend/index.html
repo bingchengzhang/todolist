@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#080714" />
+  <meta name="theme-color" content="#0a0e1a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Todo" />
@@ -14,12 +14,12 @@
 </head>
 <body>
 
-  <!-- Ambient background orbs -->
+  <canvas id="particles"></canvas>
+
   <div class="bg-orb bg-orb-1"></div>
   <div class="bg-orb bg-orb-2"></div>
   <div class="bg-orb bg-orb-3"></div>
 
-  <!-- Header -->
   <header class="header">
     <div class="header-inner">
       <h1 class="header-title">任务</h1>
@@ -27,26 +27,32 @@
     </div>
   </header>
 
-  <!-- Input bar -->
   <div class="input-wrap">
     <div class="input-card">
-      <input id="todo-input" type="text" placeholder="添加新任务…" maxlength="200" autocomplete="off" />
-      <button id="add-btn" aria-label="添加">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      <div class="input-row-main">
+        <input id="todo-input" type="text" placeholder="添加新任务…" maxlength="200" autocomplete="off" />
+        <button id="add-btn" aria-label="添加">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-row-deadline">
+        <svg class="deadline-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-      </button>
+        <input id="deadline-input" type="datetime-local" />
+        <button id="clear-deadline" class="clear-deadline hidden" title="清除截止日期">×</button>
+      </div>
     </div>
     <p id="input-error" class="input-error hidden"></p>
   </div>
 
-  <!-- Active todos -->
   <section class="section">
     <ul id="todo-list" class="card-list"></ul>
     <p id="empty-hint" class="empty-hint hidden">暂无任务 — 在上方添加一个吧</p>
   </section>
 
-  <!-- Completed todos -->
   <section class="section" id="done-section">
     <button class="section-toggle" id="done-toggle" aria-expanded="false">
       <span class="section-toggle-label">已完成</span>
