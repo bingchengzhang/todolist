@@ -8,7 +8,7 @@ from flask_cors import CORS
 from models.database import init_db
 from routes.todo import bp as todos_bp
 
-FRONTEND = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+FRONTEND = os.path.join(os.path.dirname(__file__), 'frontend')
 
 app = Flask(__name__, static_folder=FRONTEND, static_url_path='')
 CORS(app)
