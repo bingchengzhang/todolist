@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# Claude Code
+.claude/
+
+# Database
+backend/data/todos.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
