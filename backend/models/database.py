@@ -1,27 +1,27 @@
-import sqlite3
 import os
+import psycopg2
+import psycopg2.extras
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'todos.db')
+DATABASE_URL = os.environ['DATABASE_URL']
 
 
 def get_connection():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
     conn = get_connection()
-    conn.execute('''
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS todos (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             text        TEXT NOT NULL,
-            done        BOOLEAN DEFAULT 0,
+            done        BOOLEAN DEFAULT FALSE,
             category    TEXT,
             priority    TEXT,
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
+    cur.close()
     conn.close()
