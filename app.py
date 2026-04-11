@@ -7,6 +7,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from models.database import init_db
 from routes.todo import bp as todos_bp
+from routes.auth import bp as auth_bp
 
 FRONTEND = os.path.join(os.path.dirname(__file__), 'frontend')
 
@@ -15,6 +16,7 @@ CORS(app)
 
 init_db()
 app.register_blueprint(todos_bp)
+app.register_blueprint(auth_bp)
 
 
 @app.get('/')

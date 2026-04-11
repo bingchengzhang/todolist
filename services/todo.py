@@ -6,7 +6,7 @@ from models.todo import (
 from services.ai import analyze
 
 
-def create_todo(text: str, deadline=None) -> dict:
+def create_todo(text: str, user_id: int, deadline=None) -> dict:
     if not text or not text.strip():
         raise ValueError('任务内容不能为空')
     if len(text) > 200:
@@ -14,7 +14,7 @@ def create_todo(text: str, deadline=None) -> dict:
 
     text = text.strip()
     ai_result = analyze(text)
-    todo_id = insert_todo(text, ai_result['category'], ai_result['priority'], deadline or None)
+    todo_id = insert_todo(text, ai_result['category'], ai_result['priority'], deadline or None, user_id)
     return {
         'ok': True,
         'id': todo_id,
@@ -23,13 +23,12 @@ def create_todo(text: str, deadline=None) -> dict:
     }
 
 
-def list_todos() -> list:
-    return get_all_todos()
+def list_todos(user_id: int) -> list:
+    return get_all_todos(user_id)
 
 
-def complete_todo(todo_id: int, done: bool) -> dict:
-    found = update_todo_done(todo_id, done)
-    if not found:
+def complete_todo(todo_id: int, done: bool, user_id: int) -> dict:
+    if not update_todo_done(todo_id, done, user_id):
         raise LookupError(f'Todo {todo_id} not found')
     return {'ok': True}
 
@@ -37,24 +36,21 @@ def complete_todo(todo_id: int, done: bool) -> dict:
 VALID_PRIORITIES = {'高', '中', '低'}
 
 
-def change_priority(todo_id: int, priority: str) -> dict:
+def change_priority(todo_id: int, priority: str, user_id: int) -> dict:
     if priority not in VALID_PRIORITIES:
         raise ValueError(f'无效优先级：{priority}')
-    found = update_todo_priority(todo_id, priority)
-    if not found:
+    if not update_todo_priority(todo_id, priority, user_id):
         raise LookupError(f'Todo {todo_id} not found')
     return {'ok': True}
 
 
-def change_deadline(todo_id: int, deadline) -> dict:
-    found = update_todo_deadline(todo_id, deadline)
-    if not found:
+def change_deadline(todo_id: int, deadline, user_id: int) -> dict:
+    if not update_todo_deadline(todo_id, deadline, user_id):
         raise LookupError(f'Todo {todo_id} not found')
     return {'ok': True}
 
 
-def remove_todo(todo_id: int) -> dict:
-    found = delete_todo(todo_id)
-    if not found:
+def remove_todo(todo_id: int, user_id: int) -> dict:
+    if not delete_todo(todo_id, user_id):
         raise LookupError(f'Todo {todo_id} not found')
     return {'ok': True}
