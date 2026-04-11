@@ -48,7 +48,8 @@ def require_auth(f):
         try:
             payload = jwt.decode(token, SECRET, algorithms=['HS256'])
             user_id = payload['sub']
-        except Exception:
-            return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return jsonify({'ok': False, 'error': 'Unauthorized', 'detail': str(e)}), 401
         return f(*args, user_id=user_id, **kwargs)
     return decorated
