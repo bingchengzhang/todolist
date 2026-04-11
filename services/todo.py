@@ -5,8 +5,11 @@ from models.todo import (
 )
 from services.ai import analyze
 
+VALID_CATEGORIES = {'工作', '学习', '生活', '其他'}
+VALID_PRIORITIES = {'高', '中', '低'}
 
-def create_todo(text: str, user_id: int, deadline=None) -> dict:
+
+def create_todo(text: str, user_id: int, deadline=None, category=None, priority=None) -> dict:
     if not text or not text.strip():
         raise ValueError('任务内容不能为空')
     if len(text) > 200:
@@ -14,12 +17,16 @@ def create_todo(text: str, user_id: int, deadline=None) -> dict:
 
     text = text.strip()
     ai_result = analyze(text)
-    todo_id = insert_todo(text, ai_result['category'], ai_result['priority'], deadline or None, user_id)
+
+    final_category = category if category in VALID_CATEGORIES else ai_result['category']
+    final_priority = priority if priority in VALID_PRIORITIES else ai_result['priority']
+
+    todo_id = insert_todo(text, final_category, final_priority, deadline or None, user_id)
     return {
         'ok': True,
         'id': todo_id,
-        'category': ai_result['category'],
-        'priority': ai_result['priority'],
+        'category': final_category,
+        'priority': final_priority,
     }
 
 
@@ -31,9 +38,6 @@ def complete_todo(todo_id: int, done: bool, user_id: int) -> dict:
     if not update_todo_done(todo_id, done, user_id):
         raise LookupError(f'Todo {todo_id} not found')
     return {'ok': True}
-
-
-VALID_PRIORITIES = {'高', '中', '低'}
 
 
 def change_priority(todo_id: int, priority: str, user_id: int) -> dict:

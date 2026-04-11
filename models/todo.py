@@ -24,7 +24,7 @@ def get_all_todos(user_id):
         "SELECT id, text, done, category, priority, deadline, "
         "to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at "
         "FROM todos WHERE user_id = %s "
-        "ORDER BY "
+        "ORDER BY done ASC, "
         "  CASE WHEN deadline IS NULL THEN 1 ELSE 0 END, "
         "  deadline ASC, created_at DESC",
         (user_id,)
@@ -43,10 +43,16 @@ def get_all_todos(user_id):
 def update_todo_done(todo_id, done, user_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        'UPDATE todos SET done = %s WHERE id = %s AND user_id = %s',
-        (done, todo_id, user_id)
-    )
+    if done:
+        cur.execute(
+            'UPDATE todos SET done = %s, completed_at = NOW() WHERE id = %s AND user_id = %s',
+            (done, todo_id, user_id)
+        )
+    else:
+        cur.execute(
+            'UPDATE todos SET done = %s, completed_at = NULL WHERE id = %s AND user_id = %s',
+            (done, todo_id, user_id)
+        )
     affected = cur.rowcount
     conn.commit()
     cur.close()
@@ -57,10 +63,8 @@ def update_todo_done(todo_id, done, user_id):
 def update_todo_priority(todo_id, priority, user_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        'UPDATE todos SET priority = %s WHERE id = %s AND user_id = %s',
-        (priority, todo_id, user_id)
-    )
+    cur.execute('UPDATE todos SET priority = %s WHERE id = %s AND user_id = %s',
+                (priority, todo_id, user_id))
     affected = cur.rowcount
     conn.commit()
     cur.close()
@@ -71,10 +75,8 @@ def update_todo_priority(todo_id, priority, user_id):
 def update_todo_deadline(todo_id, deadline, user_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        'UPDATE todos SET deadline = %s WHERE id = %s AND user_id = %s',
-        (deadline or None, todo_id, user_id)
-    )
+    cur.execute('UPDATE todos SET deadline = %s WHERE id = %s AND user_id = %s',
+                (deadline or None, todo_id, user_id))
     affected = cur.rowcount
     conn.commit()
     cur.close()
@@ -85,10 +87,7 @@ def update_todo_deadline(todo_id, deadline, user_id):
 def delete_todo(todo_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        'DELETE FROM todos WHERE id = %s AND user_id = %s',
-        (todo_id, user_id)
-    )
+    cur.execute('DELETE FROM todos WHERE id = %s AND user_id = %s', (todo_id, user_id))
     affected = cur.rowcount
     conn.commit()
     cur.close()

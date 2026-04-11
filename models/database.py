@@ -24,20 +24,21 @@ def init_db():
 
     cur.execute('''
         CREATE TABLE IF NOT EXISTS todos (
-            id          SERIAL PRIMARY KEY,
-            user_id     INTEGER REFERENCES users(id),
-            text        TEXT NOT NULL,
-            done        BOOLEAN DEFAULT FALSE,
-            category    TEXT,
-            priority    TEXT,
-            deadline    TIMESTAMP,
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id           SERIAL PRIMARY KEY,
+            user_id      INTEGER REFERENCES users(id),
+            text         TEXT NOT NULL,
+            done         BOOLEAN DEFAULT FALSE,
+            category     TEXT,
+            priority     TEXT,
+            deadline     TIMESTAMP,
+            completed_at TIMESTAMP,
+            created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
-    # Safe migrations for existing tables
     cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS deadline TIMESTAMP')
     cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)')
+    cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP')
 
     conn.commit()
     cur.close()

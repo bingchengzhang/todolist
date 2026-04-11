@@ -20,7 +20,13 @@ def get_todos(user_id):
 def post_todo(user_id):
     data = request.get_json(silent=True) or {}
     try:
-        result = create_todo(data.get('text', ''), user_id, data.get('deadline') or None)
+        result = create_todo(
+            data.get('text', ''),
+            user_id,
+            deadline=data.get('deadline') or None,
+            category=data.get('category') or None,
+            priority=data.get('priority') or None,
+        )
         return jsonify(result), 201
     except ValueError as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
@@ -41,8 +47,7 @@ def patch_todo(todo_id, user_id):
         try:
             return jsonify(change_priority(todo_id, data['priority'], user_id))
         except (ValueError, LookupError) as e:
-            code = 400 if isinstance(e, ValueError) else 404
-            return jsonify({'ok': False, 'error': str(e)}), code
+            return jsonify({'ok': False, 'error': str(e)}), (400 if isinstance(e, ValueError) else 404)
 
     if 'deadline' in data:
         try:
