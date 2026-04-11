@@ -1,4 +1,4 @@
-const CACHE = 'todo-v2';
+const CACHE = 'todo-v3';
 const SHELL = [
   './',
   './index.html',

@@ -155,7 +155,6 @@ async function loadTodos() {
   if (!res) return;
   todos = await res.json();
   render();
-  loadHeatmap();
 }
 
 function render() {
@@ -243,6 +242,10 @@ function buildItem(t) {
   ].filter(Boolean).join(' ');
   li.dataset.id = t.id;
 
+  // Category dot
+  const dot = document.createElement('div');
+  dot.className = `task-dot dot-${t.category || '其他'}`;
+
   // Checkbox
   const check = document.createElement('div');
   check.className = `task-check${t.done ? ' checked' : ''}`;
@@ -290,6 +293,7 @@ function buildItem(t) {
   delBtn.addEventListener('click', () => deleteTodo(t.id));
   actions.appendChild(delBtn);
 
+  li.appendChild(dot);
   li.appendChild(check);
   li.appendChild(body);
   li.appendChild(actions);
@@ -319,7 +323,6 @@ async function toggleDone(id, done) {
   const idx = todos.findIndex(t => t.id === id);
   if (idx !== -1) todos[idx].done = done;
   render();
-  loadHeatmap();
 }
 
 // ── Delete ─────────────────────────────────────────────────────────────────────
