@@ -35,7 +35,7 @@ def login(username: str, password: str) -> dict:
 
 def _make_token(user_id: int) -> str:
     return jwt.encode(
-        {'sub': user_id, 'exp': datetime.now(timezone.utc) + timedelta(days=30)},
+        {'sub': str(user_id), 'exp': datetime.now(timezone.utc) + timedelta(days=30)},
         SECRET,
         algorithm='HS256',
     )
@@ -47,9 +47,8 @@ def require_auth(f):
         token = request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
         try:
             payload = jwt.decode(token, SECRET, algorithms=['HS256'])
-            user_id = payload['sub']
-        except Exception as e:
-            import traceback; traceback.print_exc()
-            return jsonify({'ok': False, 'error': 'Unauthorized', 'detail': str(e)}), 401
+            user_id = int(payload['sub'])
+        except Exception:
+            return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
         return f(*args, user_id=user_id, **kwargs)
     return decorated
