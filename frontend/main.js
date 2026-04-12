@@ -7,12 +7,16 @@ const physics = (function initParticles() {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
   let W, H, particles;
-  let confettis = []; // 存储庆祝碎片
-  let mx = -1000, my = -1000; // 鼠标坐标
+  let confettis = [];
+  let mx = -1000, my = -1000;
+  
+  // 新增：重力阱（黑洞）坐标缓存
+  let gravityWells = []; 
 
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
+    syncGravityWells(); // 窗口改变时重新计算引力点
   }
 
   function mkParticle() {
@@ -26,10 +30,14 @@ const physics = (function initParticles() {
 
   function init() {
     resize();
-    particles = Array.from({ length: 70 }, mkParticle);
+    particles = Array.from({ length: 80 }, mkParticle);
   }
 
-  // 暴露给外部的爆炸函数
+  // 接收外部快照的接口
+  function setWells(wells) {
+    gravityWells = wells;
+  }
+
   function explode(x, y, category) {
     const colors = {
       '工作': ['#60a5fa', '#93c5fd', '#ffffff'],
@@ -39,11 +47,11 @@ const physics = (function initParticles() {
     };
     const palette = colors[category] || colors['其他'];
     
-    for(let i = 0; i < 40; i++) {
+    for(let i = 0; i < 30; i++) { // 为性能微调至 30 个碎片
       confettis.push({
         x: x, y: y,
         vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 1.2) * 12, // 初始向上喷射
+        vy: (Math.random() - 1.2) * 12,
         r: Math.random() * 3 + 1.5,
         color: palette[Math.floor(Math.random() * palette.length)],
         life: 1,
@@ -54,68 +62,103 @@ const physics = (function initParticles() {
 
   window.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
   window.addEventListener('resize', resize);
+  // 滚动时也需要更新引力点坐标
+  window.addEventListener('scroll', () => requestAnimationFrame(syncGravityWells), true);
   
+  // 脉冲动画的时间轴
+  let tick = 0;
+
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    tick += 0.05;
     
-    // 1. 绘制星空引力网
+    const currentHour = new Date().getHours();
+    let theme = currentHour >= 6 && currentHour < 16 ? { p: '251,146,60' } :
+                currentHour >= 16 && currentHour < 20 ? { p: '232,121,249' } :
+                { p: '127,119,221' };
+
+    // 绘制高优先级引力场（微弱的红色脉冲事件视界）
+    for (const well of gravityWells) {
+      const pulse = Math.sin(tick + well.y) * 0.1 + 0.15;
+      ctx.beginPath();
+      ctx.arc(well.x, well.y, 100, 0, Math.PI * 2);
+      const gradient = ctx.createRadialGradient(well.x, well.y, 0, well.x, well.y, 100);
+      gradient.addColorStop(0, `rgba(248,113,113,${pulse})`);
+      gradient.addColorStop(1, 'rgba(248,113,113,0)');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+    
     for (const p of particles) {
       p.x += p.vx; p.y += p.vy;
       if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
       if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
 
-      // 鼠标引力计算
-      const dx = p.x - mx, dy = p.y - my;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      
+      // 1. 鼠标引力
+      const dxM = p.x - mx, dyM = p.y - my;
+      const distM = Math.sqrt(dxM*dxM + dyM*dyM);
+      if (distM < 120) {
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(mx, my);
+        ctx.strokeStyle = `rgba(${theme.p},${0.25 * (1 - distM/120)})`;
+        ctx.lineWidth = 0.5; ctx.stroke();
+        p.vx += dxM * 0.00005; p.vy += dyM * 0.00005;
+      }
+
+      // 2. 高优先级任务黑洞引力
+      for (const well of gravityWells) {
+        const dxW = well.x - p.x, dyW = well.y - p.y;
+        const distW = Math.sqrt(dxW*dxW + dyW*dyW);
+        if (distW < 180) {
+          // 距离越近，吸力越强，并在外围形成涡流轨道
+          p.vx += (dxW / distW) * 0.04;
+          p.vy += (dyW / distW) * 0.04;
+          // 轨道扰动
+          p.vx += (dyW / distW) * 0.02;
+          p.vy -= (dxW / distW) * 0.02;
+        }
+      }
+
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(127,119,221,${p.baseAlpha})`;
+      ctx.fillStyle = `rgba(${theme.p},${p.baseAlpha})`;
       ctx.fill();
 
-      // 连线特效
-      if (dist < 120) {
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(mx, my);
-        ctx.strokeStyle = `rgba(127,119,221,${0.25 * (1 - dist/120)})`;
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-        // 微弱排斥力
-        p.vx += dx * 0.00005; p.vy += dy * 0.00005;
-      }
-      // 速度衰减归一
-      p.vx *= 0.99; p.vy *= 0.99;
+      p.vx *= 0.985; p.vy *= 0.985;
       if(Math.abs(p.vx) < 0.1) p.vx += (Math.random()-0.5)*0.1;
       if(Math.abs(p.vy) < 0.1) p.vy += (Math.random()-0.5)*0.1;
     }
 
-    // 2. 绘制庆祝碎片
     for (let i = confettis.length - 1; i >= 0; i--) {
       let c = confettis[i];
-      c.x += c.vx; c.y += c.vy;
-      c.vy += 0.4; // 重力
-      c.vx *= 0.96; // 空气阻力
-      c.life -= c.decay;
-      
+      c.x += c.vx; c.y += c.vy; c.vy += 0.4; c.vx *= 0.96; c.life -= c.decay;
       if (c.life <= 0) { confettis.splice(i, 1); continue; }
-      
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-      ctx.fillStyle = c.color;
-      ctx.globalAlpha = c.life;
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      ctx.fillStyle = c.color; ctx.globalAlpha = c.life; ctx.fill();
     }
-    ctx.globalAlpha = 1; // 恢复透明度
+    ctx.globalAlpha = 1;
 
     requestAnimationFrame(draw);
   }
 
   init();
   draw();
-  return { explode };
+  return { explode, setWells };
 })();
-
+// ── 同步高优先级引力坐标 ────────────────────────────────────────────────────────
+function syncGravityWells() {
+  if (!physics) return;
+  // 找出所有高优先级且未完成的任务
+  const highPriItems = document.querySelectorAll('.task-item.pri-高:not(.done-item)');
+  const wells = Array.from(highPriItems).map(el => {
+    const rect = el.getBoundingClientRect();
+    // 将引力核心设定在卡片的左侧（通常是复选框的位置）
+    return { 
+      x: rect.left + 20, 
+      y: rect.top + rect.height / 2 
+    };
+  });
+  physics.setWells(wells);
+}
 // ── State ──────────────────────────────────────────────────────────────────────
 let token    = localStorage.getItem('token') || '';
 let username = localStorage.getItem('username') || '';
@@ -229,6 +272,9 @@ function render() {
   updateStats();
   renderGroups();
   renderDone();
+  
+  // DOM 渲染完成后，利用 requestAnimationFrame 确保布局已稳定，再去抓取坐标
+  requestAnimationFrame(syncGravityWells);
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────────

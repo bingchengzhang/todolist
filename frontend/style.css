@@ -32,22 +32,30 @@ body {
   z-index: 0;
 }
 
-/* ── Orbs ─────────────────────────────────────── */
+/* ── Orbs (支持动态色温与呼吸过渡) ───────────────────────── */
+:root {
+  --orb-1-color: rgba(129,140,248,0.1);
+  --orb-2-color: rgba(56,189,248,0.07);
+}
+
 .orb {
   position: fixed;
   border-radius: 50%;
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
+  transition: background 3s ease-in-out; /* 昼夜切换时的平滑过渡 */
 }
+
 .orb-1 {
   width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(129,140,248,0.1) 0%, transparent 65%);
+  background: radial-gradient(circle, var(--orb-1-color) 0%, transparent 65%);
   top: -180px; left: -140px;
 }
+
 .orb-2 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(56,189,248,0.07) 0%, transparent 65%);
+  background: radial-gradient(circle, var(--orb-2-color) 0%, transparent 65%);
   bottom: -120px; right: -100px;
 }
 
