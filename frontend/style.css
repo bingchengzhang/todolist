@@ -32,54 +32,53 @@ body {
   z-index: 0;
 }
 
-/* ── 动态环境色温 (沉浸版) ───────────────────────── */
+/* ── 极简·神秘紫主题 ───────────────────────── */
 :root {
-  --accent-primary: rgba(129, 140, 248, 1);
-  --glow-color: rgba(129, 140, 248, 0.4);
+  --bg: #070810;
+  --text: #f8fafc;
+  --primary: #a78bfa; /* 神秘紫核心色 */
+  --muted: #64748b;
+  --subtle: #1e1b4b;
+  --high-priority: #f87171;
 }
 
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* 柔和的紫色背景光球 */
 .orb {
   position: fixed;
   border-radius: 50%;
-  filter: blur(80px); /* 稍微降低模糊度，增加色彩存在感 */
+  filter: blur(120px);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.6;
-  mix-blend-mode: soft-light;
-  transition: all 8s ease-in-out; /* 极其缓慢的色温过渡 */
-  animation: orbFloat 20s infinite alternate ease-in-out;
+  opacity: 0.5;
 }
-
-/* 背景光球的漂移轨迹，增加灵动感 */
-@keyframes orbFloat {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(100px, 50px) scale(1.1); }
-}
-
 .orb-1 {
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, var(--orb-1-color) 0%, transparent 80%);
-  top: -250px; left: -200px;
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+  top: -300px; left: -200px;
 }
-
 .orb-2 {
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, var(--orb-2-color) 0%, transparent 80%);
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(76, 29, 149, 0.12) 0%, transparent 70%);
   bottom: -200px; right: -150px;
-  animation-delay: -5s;
 }
 
-/* 高优先级任务的艺术化表达：不再是漩涡，是流动的呼吸边框 */
+/* 高优先级任务：仅保留侧边紫色发光，无大漩涡 */
 .task-item.pri-高 {
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  box-shadow: 0 0 20px rgba(248, 113, 113, 0.1), inset 0 0 10px rgba(248, 113, 113, 0.05);
-  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(248,113,113,0.03));
-  animation: taskPulse 3s infinite ease-in-out;
+  border-left: 3px solid var(--high-priority);
+  background: linear-gradient(90deg, rgba(248, 113, 113, 0.04), transparent);
 }
 
-@keyframes taskPulse {
-  0%, 100% { border-color: rgba(248, 113, 113, 0.2); }
-  50% { border-color: rgba(248, 113, 113, 0.5); }
+/* 交互状态 */
+.task-item.completing {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: all 0.4s ease;
 }
 
 /* ── Auth overlay ─────────────────────────────── */
