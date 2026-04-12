@@ -2,11 +2,13 @@ const API  = '/api/todos';
 const AUTH = '/api/auth';
 const STATS_API = '/api/stats';
 
-// ── Particles ─────────────────────────────────────────────────────────────────
-(function initParticles() {
+// ── Particles & Physics Engine ────────────────────────────────────────────────
+const physics = (function initParticles() {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
   let W, H, particles;
+  let confettis = []; // 存储庆祝碎片
+  let mx = -1000, my = -1000; // 鼠标坐标
 
   function resize() {
     W = canvas.width  = window.innerWidth;
@@ -15,37 +17,103 @@ const STATS_API = '/api/stats';
 
   function mkParticle() {
     return {
-      x: Math.random() * W,
-      y: Math.random() * H,
+      x: Math.random() * W, y: Math.random() * H,
       r: Math.random() * 1.5 + 0.4,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      a: Math.random() * 0.5 + 0.15,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+      baseAlpha: Math.random() * 0.5 + 0.15,
     };
   }
 
   function init() {
     resize();
-    particles = Array.from({ length: 60 }, mkParticle);
+    particles = Array.from({ length: 70 }, mkParticle);
   }
 
+  // 暴露给外部的爆炸函数
+  function explode(x, y, category) {
+    const colors = {
+      '工作': ['#60a5fa', '#93c5fd', '#ffffff'],
+      '学习': ['#a78bfa', '#c4b5fd', '#ffffff'],
+      '生活': ['#34d399', '#6ee7b7', '#ffffff'],
+      '其他': ['#94a3b8', '#cbd5e1', '#ffffff']
+    };
+    const palette = colors[category] || colors['其他'];
+    
+    for(let i = 0; i < 40; i++) {
+      confettis.push({
+        x: x, y: y,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 1.2) * 12, // 初始向上喷射
+        r: Math.random() * 3 + 1.5,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        life: 1,
+        decay: Math.random() * 0.015 + 0.01
+      });
+    }
+  }
+
+  window.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  window.addEventListener('resize', resize);
+  
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    
+    // 1. 绘制星空引力网
     for (const p of particles) {
       p.x += p.vx; p.y += p.vy;
       if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
       if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+
+      // 鼠标引力计算
+      const dx = p.x - mx, dy = p.y - my;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(127,119,221,${p.a})`;
+      ctx.fillStyle = `rgba(127,119,221,${p.baseAlpha})`;
+      ctx.fill();
+
+      // 连线特效
+      if (dist < 120) {
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(mx, my);
+        ctx.strokeStyle = `rgba(127,119,221,${0.25 * (1 - dist/120)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // 微弱排斥力
+        p.vx += dx * 0.00005; p.vy += dy * 0.00005;
+      }
+      // 速度衰减归一
+      p.vx *= 0.99; p.vy *= 0.99;
+      if(Math.abs(p.vx) < 0.1) p.vx += (Math.random()-0.5)*0.1;
+      if(Math.abs(p.vy) < 0.1) p.vy += (Math.random()-0.5)*0.1;
+    }
+
+    // 2. 绘制庆祝碎片
+    for (let i = confettis.length - 1; i >= 0; i--) {
+      let c = confettis[i];
+      c.x += c.vx; c.y += c.vy;
+      c.vy += 0.4; // 重力
+      c.vx *= 0.96; // 空气阻力
+      c.life -= c.decay;
+      
+      if (c.life <= 0) { confettis.splice(i, 1); continue; }
+      
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      ctx.fillStyle = c.color;
+      ctx.globalAlpha = c.life;
       ctx.fill();
     }
+    ctx.globalAlpha = 1; // 恢复透明度
+
     requestAnimationFrame(draw);
   }
 
-  window.addEventListener('resize', resize);
   init();
   draw();
+  return { explode };
 })();
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -246,11 +314,10 @@ function buildItem(t) {
   const dot = document.createElement('div');
   dot.className = `task-dot dot-${t.category || '其他'}`;
 
-  // Checkbox
+  // 修改：Checkbox 绑定逻辑
   const check = document.createElement('div');
   check.className = `task-check${t.done ? ' checked' : ''}`;
-  check.addEventListener('click', () => toggleDone(t.id, !t.done));
-
+  check.addEventListener('click', (e) => toggleDone(t.id, !t.done, e, t.category, li));
   // Body
   const body = document.createElement('div');
   body.className = 'task-body';
@@ -314,11 +381,25 @@ function formatDeadline(dl) {
 }
 
 // ── Toggle done ────────────────────────────────────────────────────────────────
-async function toggleDone(id, done) {
+async function toggleDone(id, done, event, category, liElement) {
+  // 如果是标记为完成，触发动画缓冲
+  if (done && event && liElement) {
+    const rect = event.target.getBoundingClientRect();
+    // 触发锚点爆炸，提取卡片中心坐标
+    physics.explode(rect.left + rect.width / 2, rect.top + rect.height / 2, category);
+    
+    // 给卡片加上即将消失的 CSS 类
+    liElement.classList.add('completing');
+    
+    // 延迟 400ms 给前端动画表现时间，然后再发请求刷新
+    await new Promise(r => setTimeout(r, 400));
+  }
+
   const res = await apiFetch(`${API}/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ done }),
   });
+  
   if (!res) return;
   const idx = todos.findIndex(t => t.id === id);
   if (idx !== -1) todos[idx].done = done;

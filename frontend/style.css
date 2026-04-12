@@ -421,23 +421,46 @@ body {
 }
 .task-list.collapsed { display: none; }
 
-/* ── Task item ────────────────────────────────── */
+/* ── Task item (增强物理厚度与光影) ────────────────── */
 .task-item {
   display: flex;
   align-items: flex-start;
   gap: .7rem;
   padding: .7rem .9rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.12); /* 顶部高光拟真 */
   border-radius: 9px;
-  transition: border-color .15s;
+  /* 增加内发光与底层阴影 */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   position: relative;
+  overflow: hidden;
 }
-.task-item:hover { border-color: rgba(255,255,255,0.2); }
-.task-item.done-item { opacity: .45; }
+
+.task-item:hover { 
+  border-color: rgba(255,255,255,0.2); 
+  background: rgba(255,255,255,0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
+}
+
+/* 正在完成的瞬间状态（过渡缓冲） */
+.task-item.completing {
+  transform: scale(0.96);
+  opacity: 0;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.task-item.done-item { 
+  opacity: .45; 
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
 .task-item.done-item .task-text { text-decoration: line-through; color: var(--muted); }
 .task-item.overdue { border-color: rgba(248,113,113,0.25); }
-
 /* category dot inside card */
 .task-dot {
   width: 6px; height: 6px;
