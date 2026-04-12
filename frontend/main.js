@@ -13,10 +13,11 @@ const physics = (function initParticles() {
   // 新增：重力阱（黑洞）坐标缓存
   let gravityWells = []; 
 
-  function resize() {
+function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
-    syncGravityWells(); // 窗口改变时重新计算引力点
+    // 异步执行，确保此时 physics 变量已经完成初始化赋值
+    setTimeout(syncGravityWells, 0); 
   }
 
   function mkParticle() {
@@ -146,12 +147,15 @@ const physics = (function initParticles() {
 })();
 // ── 同步高优先级引力坐标 ────────────────────────────────────────────────────────
 function syncGravityWells() {
-  if (!physics) return;
-  // 找出所有高优先级且未完成的任务
+  // 核心修复：检查 physics 是否已存在，且是否具备 setWells 方法
+  // 这里的 typeof 判断可以避开死区报错
+  if (typeof physics === 'undefined' || !physics || !physics.setWells) {
+    return; 
+  }
+
   const highPriItems = document.querySelectorAll('.task-item.pri-高:not(.done-item)');
   const wells = Array.from(highPriItems).map(el => {
     const rect = el.getBoundingClientRect();
-    // 将引力核心设定在卡片的左侧（通常是复选框的位置）
     return { 
       x: rect.left + 20, 
       y: rect.top + rect.height / 2 
