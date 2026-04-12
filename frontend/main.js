@@ -2,148 +2,84 @@ const API  = '/api/todos';
 const AUTH = '/api/auth';
 const STATS_API = '/api/stats';
 
-// ── Particles & Physics Engine ────────────────────────────────────────────────
 const physics = (function initParticles() {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
-  let W, H, particles;
-  let confettis = [];
+  let W, H, particles, gravityWells = [];
   let mx = -1000, my = -1000;
-  
-  // 新增：重力阱（黑洞）坐标缓存
-  let gravityWells = []; 
 
-function resize() {
-    W = canvas.width  = window.innerWidth;
+  // --- 1. 艺术级色温色板 ---
+  const getTheme = () => {
+    const h = new Date().getHours();
+    // 黎明：冷紫转暖橙 | 午后：通透天蓝 | 傍晚：火烧云 | 深夜：幽冥蓝
+    if (h >= 5 && h < 9)   return { p: '255,167,118', o1: 'rgba(255,167,118,0.4)', o2: 'rgba(129,140,248,0.2)' };
+    if (h >= 9 && h < 17)  return { p: '56,189,248',  o1: 'rgba(56,189,248,0.3)',  o2: 'rgba(255,255,255,0.1)' };
+    if (h >= 17 && h < 20) return { p: '251,113,133', o1: 'rgba(251,113,133,0.4)', o2: 'rgba(124,58,237,0.3)' };
+    return { p: '127,119,221', o1: 'rgba(79,70,229,0.2)', o2: 'rgba(15,23,42,0.4)' };
+  };
+
+  const theme = getTheme();
+  document.documentElement.style.setProperty('--orb-1-color', theme.o1);
+  document.documentElement.style.setProperty('--orb-2-color', theme.o2);
+  document.documentElement.style.setProperty('--accent-primary', `rgba(${theme.p}, 1)`);
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
     H = canvas.height = window.innerHeight;
-    // 异步执行，确保此时 physics 变量已经完成初始化赋值
-    setTimeout(syncGravityWells, 0); 
+    setTimeout(() => { if(typeof syncGravityWells !== 'undefined') syncGravityWells(); }, 100);
   }
 
   function mkParticle() {
     return {
       x: Math.random() * W, y: Math.random() * H,
-      r: Math.random() * 1.5 + 0.4,
-      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
-      baseAlpha: Math.random() * 0.5 + 0.15,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+      alpha: Math.random() * 0.5 + 0.2
     };
   }
-
-  function init() {
-    resize();
-    particles = Array.from({ length: 80 }, mkParticle);
-  }
-
-  // 接收外部快照的接口
-  function setWells(wells) {
-    gravityWells = wells;
-  }
-
-  function explode(x, y, category) {
-    const colors = {
-      '工作': ['#60a5fa', '#93c5fd', '#ffffff'],
-      '学习': ['#a78bfa', '#c4b5fd', '#ffffff'],
-      '生活': ['#34d399', '#6ee7b7', '#ffffff'],
-      '其他': ['#94a3b8', '#cbd5e1', '#ffffff']
-    };
-    const palette = colors[category] || colors['其他'];
-    
-    for(let i = 0; i < 30; i++) { // 为性能微调至 30 个碎片
-      confettis.push({
-        x: x, y: y,
-        vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 1.2) * 12,
-        r: Math.random() * 3 + 1.5,
-        color: palette[Math.floor(Math.random() * palette.length)],
-        life: 1,
-        decay: Math.random() * 0.015 + 0.01
-      });
-    }
-  }
-
-  window.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-  window.addEventListener('resize', resize);
-  // 滚动时也需要更新引力点坐标
-  window.addEventListener('scroll', () => requestAnimationFrame(syncGravityWells), true);
-  
-  // 脉冲动画的时间轴
-  let tick = 0;
 
   function draw() {
-    ctx.clearRect(0, 0, W, H);
-    tick += 0.05;
-    
-    const currentHour = new Date().getHours();
-    let theme = currentHour >= 6 && currentHour < 16 ? { p: '251,146,60' } :
-                currentHour >= 16 && currentHour < 20 ? { p: '232,121,249' } :
-                { p: '127,119,221' };
+    // 这里的清屏方式是精髓：保留 0.1 的透明度，制造粒子的“拖尾”丝滑感
+    ctx.fillStyle = 'rgba(10, 12, 20, 0.15)';
+    ctx.fillRect(0, 0, W, H);
 
-    // 绘制高优先级引力场（微弱的红色脉冲事件视界）
-    for (const well of gravityWells) {
-      const pulse = Math.sin(tick + well.y) * 0.1 + 0.15;
-      ctx.beginPath();
-      ctx.arc(well.x, well.y, 100, 0, Math.PI * 2);
-      const gradient = ctx.createRadialGradient(well.x, well.y, 0, well.x, well.y, 100);
-      gradient.addColorStop(0, `rgba(248,113,113,${pulse})`);
-      gradient.addColorStop(1, 'rgba(248,113,113,0)');
-      ctx.fillStyle = gradient;
-      ctx.fill();
-    }
-    
     for (const p of particles) {
+      // 2. 引力计算：不再有红圈，只有引力
+      for (const well of gravityWells) {
+        const dx = well.x - p.x, dy = well.y - p.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 150) {
+          // 靠近高优先级任务时，粒子会被加速并产生向心力
+          p.vx += dx * 0.001; p.vy += dy * 0.001;
+          // 粒子经过引力场时会变亮，产生“星云”闪烁感
+          p.alpha = Math.min(1, p.alpha + 0.05);
+        } else {
+          p.alpha = Math.max(0.2, p.alpha - 0.01);
+        }
+      }
+
       p.x += p.vx; p.y += p.vy;
       if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
       if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
 
-      // 1. 鼠标引力
-      const dxM = p.x - mx, dyM = p.y - my;
-      const distM = Math.sqrt(dxM*dxM + dyM*dyM);
-      if (distM < 120) {
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(mx, my);
-        ctx.strokeStyle = `rgba(${theme.p},${0.25 * (1 - distM/120)})`;
-        ctx.lineWidth = 0.5; ctx.stroke();
-        p.vx += dxM * 0.00005; p.vy += dyM * 0.00005;
-      }
-
-      // 2. 高优先级任务黑洞引力
-      for (const well of gravityWells) {
-        const dxW = well.x - p.x, dyW = well.y - p.y;
-        const distW = Math.sqrt(dxW*dxW + dyW*dyW);
-        if (distW < 180) {
-          // 距离越近，吸力越强，并在外围形成涡流轨道
-          p.vx += (dxW / distW) * 0.04;
-          p.vy += (dyW / distW) * 0.04;
-          // 轨道扰动
-          p.vx += (dyW / distW) * 0.02;
-          p.vy -= (dxW / distW) * 0.02;
-        }
-      }
-
       ctx.beginPath();
+      // 使用 theme.p 动态颜色，实现粒子随时间变色
+      ctx.fillStyle = `rgba(${theme.p}, ${p.alpha})`;
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${theme.p},${p.baseAlpha})`;
       ctx.fill();
 
-      p.vx *= 0.985; p.vy *= 0.985;
-      if(Math.abs(p.vx) < 0.1) p.vx += (Math.random()-0.5)*0.1;
-      if(Math.abs(p.vy) < 0.1) p.vy += (Math.random()-0.5)*0.1;
+      // 摩擦力，防止粒子速度无限叠加
+      p.vx *= 0.99; p.vy *= 0.99;
     }
-
-    for (let i = confettis.length - 1; i >= 0; i--) {
-      let c = confettis[i];
-      c.x += c.vx; c.y += c.vy; c.vy += 0.4; c.vx *= 0.96; c.life -= c.decay;
-      if (c.life <= 0) { confettis.splice(i, 1); continue; }
-      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-      ctx.fillStyle = c.color; ctx.globalAlpha = c.life; ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
     requestAnimationFrame(draw);
   }
 
-  init();
+  window.addEventListener('resize', resize);
+  resize();
+  particles = Array.from({ length: 60 }, mkParticle);
   draw();
-  return { explode, setWells };
+
+  return { setWells: (wells) => { gravityWells = wells; } };
 })();
 // ── 同步高优先级引力坐标 ────────────────────────────────────────────────────────
 function syncGravityWells() {
