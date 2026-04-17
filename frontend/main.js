@@ -1,6 +1,5 @@
 // ── 智能 API 适配器 ─────────────────────────────────────────────────────────
-// 请将此地址改为你在 Railway 仪表盘看到的 "Public Networking" URL
-const CLOUD_BACKEND_URL = 'https://todolist-production-e9e6.up.railway.app'; 
+const CLOUD_BACKEND_URL = 'https://web-production-f1ba1.up.railway.app'; 
 
 const getBaseUrl = () => {
   if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
