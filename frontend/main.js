@@ -1,24 +1,22 @@
-// ── 智能 API 适配器 ─────────────────────────────────────────────────────────
-const CLOUD_BACKEND_URL = 'https://web-production-f1ba1.up.railway.app'; 
+// ── 智能 API 适配器 (硬核锁定版) ──────────────────────────────────────────────────
+const PROD_URL = 'https://web-production-f1ba1.up.railway.app';
 
 const getBaseUrl = () => {
+  // 只有在本地开发时才允许使用 http
   if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
     return 'http://127.0.0.1:5000';
   }
-  let url = CLOUD_BACKEND_URL || window.location.origin;
-  // 核心修复：强制将 http 转换为 https
-  return url.replace('http://', 'https://');
+  // 生产环境强制使用 https 绝对路径，杜绝 Mixed Content
+  return PROD_URL;
 };
 
 const BASE_URL = getBaseUrl();
 const API = `${BASE_URL}/api/todos`;
 const AUTH = `${BASE_URL}/api/auth`;
 
-console.log(`[System] Connecting to backend at: ${BASE_URL}`);
+console.log(`[System] API Locked at: ${BASE_URL}`);
 
-// ── 极致视觉引擎 ─────────────────────────────────────────────────────────────
-// (保持之前的艺术化逻辑，并优化了移动端适配)
-
+// ── 状态管理 ──────────────────────────────────────────────────────────────────
 let state = {
   token: localStorage.getItem('token') || '',
   username: localStorage.getItem('username') || '',
@@ -55,7 +53,7 @@ async function request(url, opts = {}) {
     return await res.json();
   } catch (e) {
     console.error('Fetch Error:', e);
-    throw new Error(`连接失败: ${e.message}。请确保后端服务已启动且跨域已开启。`);
+    throw new Error(`连接失败: ${e.message}`);
   }
 }
 
@@ -67,13 +65,10 @@ async function loadData() {
     render();
   } catch (e) {
     console.warn(e.message);
-    // 如果是云端页面报错，给予更友好的提示
-    if (window.location.protocol === 'https:') {
-      UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">
-        <p>⚠️ 无法连接到云端后端</p>
-        <p style="font-size:0.7rem; margin-top:1rem;">请检查后端 URL 是否配置正确，或者后端服务是否在线。</p>
-      </div>`;
-    }
+    UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">
+      <p>⚠️ 无法连接到服务器</p>
+      <p style="font-size:0.7rem; margin-top:1rem;">${e.message}</p>
+    </div>`;
   }
 }
 
@@ -81,21 +76,22 @@ function render() {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   const active = state.todos.filter(t => !t.done);
-  
+  const done = state.todos.filter(t => t.done);
+
   UI.stats.all.textContent = state.todos.length;
-  UI.stats.done.textContent = state.todos.filter(t => t.done).length;
+  UI.stats.done.textContent = done.length;
   UI.stats.today.textContent = active.filter(t => t.deadline && t.deadline.startsWith(todayStr)).length;
   UI.stats.overdue.textContent = active.filter(t => t.deadline && new Date(t.deadline) < now).length;
 
   let list = state.todos;
   if (state.filter === 'today') list = active.filter(t => t.deadline && t.deadline.startsWith(todayStr));
   if (state.filter === 'overdue') list = active.filter(t => t.deadline && new Date(t.deadline) < now);
-  if (state.filter === 'done') list = state.todos.filter(t => t.done);
-  if (state.filter === 'all') list = active; // 默认只看未完成
+  if (state.filter === 'done') list = done;
+  if (state.filter === 'all') list = active;
 
   UI.taskGroups.innerHTML = '';
   if (list.length === 0) {
-    UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">当前无待办事项</div>`;
+    UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">当前无事项</div>`;
     return;
   }
 
@@ -150,6 +146,7 @@ async function handleAdd() {
   const text = UI.todoInput.value.trim();
   if (!text) return;
   UI.addBtn.disabled = true;
+  UI.addBtn.textContent = '...';
   try {
     const cat = document.querySelector('#cat-tags .active')?.dataset.value || null;
     const pri = document.querySelector('#pri-tags .active')?.dataset.value || '中';
@@ -157,7 +154,10 @@ async function handleAdd() {
     UI.todoInput.value = '';
     await loadData();
   } catch (e) { alert(e.message); }
-  finally { UI.addBtn.disabled = false; }
+  finally { 
+    UI.addBtn.disabled = false; 
+    UI.addBtn.textContent = '添加';
+  }
 }
 
 // ── 交互绑定 ──────────────────────────────────────────────────────────────────
