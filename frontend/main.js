@@ -1,29 +1,17 @@
-const API  = '/api/todos';
+const API = '/api/todos';
 const AUTH = '/api/auth';
-const STATS_API = '/api/stats';
 
-// ── 终极物理引擎 (神秘紫·隐形引力版) ──────────────────────────────────────────
+// ── 物理与动画引擎 ─────────────────────────────────────────────────────────────
 const physics = (function initParticles() {
   const canvas = document.getElementById('particles');
   if (!canvas) return null;
   const ctx = canvas.getContext('2d');
   let W, H, particles;
-  let gravityWells = []; 
   let confettis = [];
 
   function resize() {
     W = canvas.width = window.innerWidth;
     H = canvas.height = window.innerHeight;
-    updateWells();
-  }
-
-  // 内部同步逻辑：只抓取坐标，不画丑漩涡
-  function updateWells() {
-    const items = document.querySelectorAll('.task-item.pri-高:not(.done-item)');
-    gravityWells = Array.from(items).map(el => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + 20, y: r.top + r.height / 2 };
-    });
   }
 
   function mkParticle() {
@@ -36,34 +24,17 @@ const physics = (function initParticles() {
   }
 
   function draw() {
-    ctx.fillStyle = 'rgba(7, 8, 16, 0.2)'; // 极暗底色配合微弱拖尾
-    ctx.fillRect(0, 0, W, H);
-
+    ctx.clearRect(0, 0, W, H);
     for (const p of particles) {
-      // 隐形引力：粒子只有经过高优先级任务时才会产生微小的路径偏转和聚合
-      for (const well of gravityWells) {
-        const dx = well.x - p.x, dy = well.y - p.y;
-        const d = Math.sqrt(dx*dx + dy*dy);
-        if (d < 150) {
-          p.vx += dx * 0.0006; p.vy += dy * 0.0006;
-          p.a = Math.min(0.8, p.a + 0.02);
-        } else {
-          p.a = Math.max(0.15, p.a - 0.01);
-        }
-      }
-
       p.x += p.vx; p.y += p.vy;
       if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
       if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
-
       ctx.beginPath();
-      ctx.fillStyle = `rgba(167, 139, 250, ${p.a})`; // 神秘紫 (#a78bfa)
+      ctx.fillStyle = `rgba(167, 139, 250, ${p.a})`;
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
-      p.vx *= 0.99; p.vy *= 0.99;
     }
 
-    // 庆祝碎片逻辑
     for (let i = confettis.length - 1; i >= 0; i--) {
       let c = confettis[i];
       c.x += c.vx; c.y += c.vy; c.vy += 0.4; c.vx *= 0.96; c.life -= c.decay;
@@ -72,118 +43,140 @@ const physics = (function initParticles() {
       ctx.fillStyle = c.color; ctx.globalAlpha = c.life; ctx.fill();
     }
     ctx.globalAlpha = 1;
-
     requestAnimationFrame(draw);
   }
 
   window.addEventListener('resize', resize);
-  particles = Array.from({ length: 65 }, mkParticle);
+  particles = Array.from({ length: 50 }, mkParticle);
   resize();
   draw();
 
   return {
-    sync: () => updateWells(),
     explode: (x, y) => {
-      for(let i = 0; i < 35; i++) {
+      for(let i = 0; i < 25; i++) {
         confettis.push({
-          x, y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 1.2) * 12,
-          r: Math.random() * 2.5 + 1, color: '#a78bfa', life: 1, decay: 0.02
+          x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 1) * 10,
+          r: Math.random() * 2 + 1, color: '#a78bfa', life: 1, decay: 0.02
         });
       }
     }
   };
 })();
 
-// ── 核心逻辑 ──────────────────────────────────────────────────────────────────
-let token    = localStorage.getItem('token') || '';
+// ── 应用状态 ──────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('token') || '';
 let username = localStorage.getItem('username') || '';
-let todos    = [];
+let todos = [];
+let currentFilter = 'all';
 
-// 统一渲染入口
-function render() {
-  updateStats();
-  renderGroups();
-  renderDone();
-  
-  // 确保物理引擎同步引力坐标
-  if (physics && physics.sync) {
-    physics.sync();
+// ── 初始化 ───────────────────────────────────────────────────────────────────
+const elements = {
+  authOverlay: document.getElementById('auth-overlay'),
+  app: document.getElementById('app'),
+  authUsername: document.getElementById('auth-username'),
+  authPassword: document.getElementById('auth-password'),
+  authSubmit: document.getElementById('auth-submit'),
+  authError: document.getElementById('auth-error'),
+  tabLogin: document.getElementById('tab-login'),
+  tabRegister: document.getElementById('tab-register'),
+  todoInput: document.getElementById('todo-input'),
+  addBtn: document.getElementById('add-btn'),
+  addIcon: document.getElementById('add-icon'),
+  aiLoader: document.getElementById('ai-loader'),
+  catTags: document.getElementById('cat-tags'),
+  priTags: document.getElementById('pri-tags'),
+  deadlineInput: document.getElementById('deadline-input'),
+  taskGroups: document.getElementById('task-groups'),
+  doneList: document.getElementById('done-list'),
+  doneCount: document.getElementById('done-count'),
+  doneToggle: document.getElementById('done-toggle'),
+  statTotal: document.getElementById('stat-total'),
+  statToday: document.getElementById('stat-today'),
+  statDone: document.getElementById('stat-done'),
+  statOverdue: document.getElementById('stat-overdue'),
+  logoutBtn: document.getElementById('logout-btn'),
+  usernameDisplay: document.getElementById('username-display'),
+};
+
+let isRegister = false;
+
+// ── Auth 逻辑 ────────────────────────────────────────────────────────────────
+elements.tabLogin.addEventListener('click', () => {
+  isRegister = false;
+  elements.tabLogin.classList.add('active');
+  elements.tabRegister.classList.remove('active');
+  elements.authSubmit.textContent = '进入空间';
+});
+
+elements.tabRegister.addEventListener('click', () => {
+  isRegister = true;
+  elements.tabRegister.classList.add('active');
+  elements.tabLogin.classList.remove('active');
+  elements.authSubmit.textContent = '创建账户';
+});
+
+elements.authSubmit.addEventListener('click', async () => {
+  const u = elements.authUsername.value.trim();
+  const p = elements.authPassword.value.trim();
+  if (!u || !p) return showError('请填写用户名和密码');
+
+  const endpoint = isRegister ? `${AUTH}/register` : `${AUTH}/login`;
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      token = data.token;
+      username = u;
+      localStorage.setItem('token', token);
+      localStorage.setItem('username', username);
+      enterApp();
+    } else {
+      showError(data.error || '认证失败');
+    }
+  } catch (e) {
+    showError('连接服务器失败');
   }
+});
+
+function showError(msg) {
+  elements.authError.textContent = msg;
+  elements.authError.classList.remove('hidden');
+  setTimeout(() => elements.authError.classList.add('hidden'), 3000);
 }
 
-// ── Auth & API Helper ─────────────────────────────────────────────────────────
-const authOverlay  = document.getElementById('auth-overlay');
-const appEl        = document.getElementById('app');
-const authUsername = document.getElementById('auth-username');
-const authPassword = document.getElementById('auth-password');
-const authSubmit   = document.getElementById('auth-submit');
+function enterApp() {
+  elements.authOverlay.classList.add('hidden');
+  elements.app.classList.remove('hidden');
+  elements.usernameDisplay.textContent = username;
+  loadTodos();
+}
 
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+elements.logoutBtn.addEventListener('click', logout);
+
+// ── API Helper ──────────────────────────────────────────────────────────────
 async function apiFetch(url, opts = {}) {
   const res = await fetch(url, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(opts.headers || {})
+    },
   });
   if (res.status === 401) { logout(); return null; }
   return res;
 }
 
-// ── Build Task Item (包含点击逻辑) ─────────────────────────────────────────────
-function buildItem(t) {
-  const li = document.createElement('li');
-  const now = new Date();
-  const dl  = t.deadline ? new Date(t.deadline) : null;
-  const isOverdue = dl && dl < now && !t.done;
-
-  li.className = [
-    'task-item',
-    `pri-${t.priority}`,
-    t.done    ? 'done-item'  : '',
-    isOverdue ? 'overdue'    : '',
-  ].filter(Boolean).join(' ');
-  li.dataset.id = t.id;
-
-  const check = document.createElement('div');
-  check.className = `task-check${t.done ? ' checked' : ''}`;
-  
-  // 核心交互：点击切换状态 + 物理爆炸动画
-  check.addEventListener('click', async (e) => {
-    const targetDone = !t.done;
-    if (targetDone && physics) {
-      const rect = check.getBoundingClientRect();
-      physics.explode(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      li.classList.add('completing');
-      await new Promise(r => setTimeout(r, 400));
-    }
-    toggleDone(t.id, targetDone);
-  });
-
-  const body = document.createElement('div');
-  body.className = 'task-body';
-  body.innerHTML = `<div class="task-text">${t.text}</div>`;
-
-  const actions = document.createElement('div');
-  actions.className = 'task-actions';
-  const delBtn = document.createElement('button');
-  delBtn.className = 'act-btn';
-  delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
-  delBtn.addEventListener('click', () => deleteTodo(t.id));
-  actions.appendChild(delBtn);
-
-  li.appendChild(check);
-  li.appendChild(body);
-  li.appendChild(actions);
-  return li;
-}
-
-// ── 功能函数 ──────────────────────────────────────────────────────────────────
-async function toggleDone(id, done) {
-  const res = await apiFetch(`${API}/${id}`, { method: 'PATCH', body: JSON.stringify({ done }) });
-  if (!res) return;
-  const idx = todos.findIndex(t => t.id === id);
-  if (idx !== -1) todos[idx].done = done;
-  render();
-}
-
+// ── 任务操作 ──────────────────────────────────────────────────────────────────
 async function loadTodos() {
   const res = await apiFetch(`${API}/`);
   if (!res) return;
@@ -191,81 +184,225 @@ async function loadTodos() {
   render();
 }
 
+async function addTodo() {
+  const text = elements.todoInput.value.trim();
+  if (!text) return;
+
+  const category = elements.catTags.querySelector('.active').dataset.value;
+  const priority = elements.priTags.querySelector('.active').dataset.value;
+  const deadline = elements.deadlineInput.value;
+
+  // UI 状态切换
+  elements.addBtn.disabled = true;
+  elements.addIcon.classList.add('hidden');
+  elements.aiLoader.classList.remove('hidden');
+
+  try {
+    const res = await apiFetch(API, {
+      method: 'POST',
+      body: JSON.stringify({ text, category, priority, deadline })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      elements.todoInput.value = '';
+      elements.deadlineInput.value = '';
+      loadTodos();
+    } else {
+      alert(data.error || '添加失败');
+    }
+  } catch (e) {
+    alert('连接失败');
+  } finally {
+    elements.addBtn.disabled = false;
+    elements.addIcon.classList.remove('hidden');
+    elements.aiLoader.classList.add('hidden');
+  }
+}
+
+async function toggleDone(id, done) {
+  const res = await apiFetch(`${API}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ done })
+  });
+  if (!res) return;
+  const todo = todos.find(t => t.id === id);
+  if (todo) todo.done = done;
+  render();
+}
+
 async function deleteTodo(id) {
+  if (!confirm('确定删除此任务吗？')) return;
   const res = await apiFetch(`${API}/${id}`, { method: 'DELETE' });
   if (!res) return;
   todos = todos.filter(t => t.id !== id);
   render();
 }
 
-// ── UI 渲染 (补完) ─────────────────────────────────────────────────────────────
-function updateStats() {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const active = todos.filter(t => !t.done);
-  const done = todos.filter(t => t.done);
-  const todayDue = active.filter(t => t.deadline && t.deadline.slice(0, 10) === today);
-  const overdue = active.filter(t => t.deadline && new Date(t.deadline) < now);
+// ── 渲染逻辑 ──────────────────────────────────────────────────────────────────
+function render() {
+  updateStats();
+  
+  const activeTasks = todos.filter(t => !t.done);
+  const doneTasks = todos.filter(t => t.done);
 
-  document.getElementById('stat-total').textContent   = todos.length;
-  document.getElementById('stat-today').textContent   = todayDue.length;
-  document.getElementById('stat-done').textContent    = done.length;
-  document.getElementById('stat-overdue').textContent = overdue.length;
+  // 渲染进行中任务
+  renderGroups(activeTasks);
+  
+  // 渲染已完成任务
+  elements.doneList.innerHTML = '';
+  doneTasks.forEach(t => elements.doneList.appendChild(buildTaskItem(t)));
+  elements.doneCount.textContent = doneTasks.length;
 }
 
-function renderGroups() {
-  const container = document.getElementById('task-groups');
-  container.innerHTML = '';
+function updateStats() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  
   const active = todos.filter(t => !t.done);
-  if (active.length === 0) return;
+  const done = todos.filter(t => t.done);
+  const todayTasks = active.filter(t => t.deadline && t.deadline.startsWith(todayStr));
+  const overdueTasks = active.filter(t => t.deadline && new Date(t.deadline) < now);
+
+  elements.statTotal.textContent = todos.length;
+  elements.statToday.textContent = todayTasks.length;
+  elements.statDone.textContent = done.length;
+  elements.statOverdue.textContent = overdueTasks.length;
+}
+
+function renderGroups(activeTasks) {
+  elements.taskGroups.innerHTML = '';
+  
+  let filtered = activeTasks;
+  if (currentFilter === 'today') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    filtered = activeTasks.filter(t => t.deadline && t.deadline.startsWith(todayStr));
+  } else if (currentFilter === 'overdue') {
+    filtered = activeTasks.filter(t => t.deadline && new Date(t.deadline) < new Date());
+  }
+
+  if (filtered.length === 0) {
+    elements.taskGroups.innerHTML = `<div class="empty-state"><div class="empty-icon">🍵</div><p>空空如也，放松一下</p></div>`;
+    return;
+  }
 
   const groups = {};
-  for (const t of active) {
+  filtered.forEach(t => {
     const cat = t.category || '其他';
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(t);
-  }
+  });
 
   ['工作', '学习', '生活', '其他'].forEach(cat => {
     if (!groups[cat]) return;
+    
     const section = document.createElement('div');
-    section.className = 'task-group';
-    section.innerHTML = `<div class="group-label"><span class="group-dot dot-${cat}"></span>${cat}</div>`;
+    section.className = 'group-section';
+    section.innerHTML = `
+      <div class="group-header">
+        <div class="group-label">
+          <span class="group-dot dot-${cat}"></span>
+          ${cat}
+        </div>
+        <span class="group-count">${groups[cat].length}</span>
+      </div>
+    `;
+    
     const ul = document.createElement('ul');
     ul.className = 'task-list';
-    groups[cat].forEach(t => ul.appendChild(buildItem(t)));
+    groups[cat].forEach(t => ul.appendChild(buildTaskItem(t)));
+    
     section.appendChild(ul);
-    container.appendChild(section);
+    elements.taskGroups.appendChild(section);
   });
 }
 
-function renderDone() {
-  const list = document.getElementById('done-list');
-  const badge = document.getElementById('done-count');
-  const done = todos.filter(t => t.done);
-  badge.textContent = done.length;
-  list.innerHTML = '';
-  done.forEach(t => list.appendChild(buildItem(t)));
+function buildTaskItem(t) {
+  const li = document.createElement('li');
+  li.className = `task-item pri-${t.priority || '中'} ${t.done ? 'done-item' : ''}`;
+  
+  const now = new Date();
+  const isOverdue = t.deadline && new Date(t.deadline) < now && !t.done;
+
+  li.innerHTML = `
+    <div class="task-check ${t.done ? 'checked' : ''}">
+      ${t.done ? '✓' : ''}
+    </div>
+    <div class="task-body">
+      <div class="task-text">${t.text}</div>
+      <div class="task-meta">
+        ${t.deadline ? `
+          <div class="meta-item ${isOverdue ? 'dl-overdue' : ''}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${formatDate(t.deadline)}
+          </div>
+        ` : ''}
+        <div class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          ${t.category || '其他'}
+        </div>
+      </div>
+    </div>
+    <div class="task-actions">
+      <button class="act-btn del-btn" title="删除">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+  `;
+
+  li.querySelector('.task-check').addEventListener('click', () => {
+    if (!t.done && physics) {
+      const rect = li.querySelector('.task-check').getBoundingClientRect();
+      physics.explode(rect.left + 10, rect.top + 10);
+    }
+    toggleDone(t.id, !t.done);
+  });
+
+  li.querySelector('.del-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteTodo(t.id);
+  });
+
+  return li;
 }
 
-// ── Auth 处理与启动 ───────────────────────────────────────────────────────────
-function enterApp() {
-  authOverlay.classList.add('hidden');
-  appEl.classList.remove('hidden');
-  document.getElementById('username-display').textContent = username;
-  loadTodos();
+function formatDate(ds) {
+  const d = new Date(ds);
+  return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function logout() {
-  token = ''; username = '';
-  localStorage.clear();
-  location.reload();
-}
+// ── 交互事件 ──────────────────────────────────────────────────────────────────
+elements.addBtn.addEventListener('click', addTodo);
+elements.todoInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') addTodo();
+});
 
-document.getElementById('logout-btn').addEventListener('click', logout);
+// 标签切换
+[elements.catTags, elements.priTags].forEach(container => {
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('.itag');
+    if (!btn) return;
+    container.querySelectorAll('.itag').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
 
-if (token) {
-  enterApp();
-} else {
-  authOverlay.classList.remove('hidden');
-}
+// 折叠已完成
+elements.doneToggle.addEventListener('click', () => {
+  const expanded = elements.doneToggle.getAttribute('aria-expanded') === 'true';
+  elements.doneToggle.setAttribute('aria-expanded', !expanded);
+  elements.doneList.classList.toggle('collapsed');
+});
+
+// 统计项过滤
+document.querySelectorAll('.stat-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    currentFilter = pill.dataset.filter;
+    render();
+  });
+});
+
+// 启动
+if (token) enterApp();
+else elements.authOverlay.classList.remove('hidden');
