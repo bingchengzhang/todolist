@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from models.database import init_db
 from routes.todo import bp as todos_bp
 from routes.auth import bp as auth_bp
@@ -13,6 +14,9 @@ from routes.stats import bp as stats_bp
 FRONTEND = os.path.join(os.path.dirname(__file__), 'frontend')
 
 app = Flask(__name__, static_folder=FRONTEND, static_url_path='')
+# 核心修复：处理云端代理后的 HTTPS 状态
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 init_db()

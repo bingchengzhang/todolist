@@ -11,8 +11,8 @@ const getBaseUrl = () => {
 };
 
 const BASE_URL = getBaseUrl();
-const API = `${BASE_URL}/api/todos`;
-const AUTH = `${BASE_URL}/api/auth`;
+const API = `${BASE_URL}/api/todos/`;
+const AUTH = `${BASE_URL}/api/auth/`;
 
 console.log(`[System] API Locked at: ${BASE_URL}`);
 
