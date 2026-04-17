@@ -5,8 +5,9 @@ const getBaseUrl = () => {
   if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
     return 'http://127.0.0.1:5000';
   }
-  // 如果在 GitHub Pages 上，优先尝试当前域名，其次尝试预设的云端后端地址
-  return CLOUD_BACKEND_URL || window.location.origin;
+  let url = CLOUD_BACKEND_URL || window.location.origin;
+  // 核心修复：强制将 http 转换为 https
+  return url.replace('http://', 'https://');
 };
 
 const BASE_URL = getBaseUrl();
