@@ -1,10 +1,24 @@
-// ── 自动环境探测 ─────────────────────────────────────────────────────────────
-const isLocalFile = window.location.protocol === 'file:';
-const BASE_URL = isLocalFile ? 'http://127.0.0.1:5000' : '';
+// ── 智能 API 适配器 ─────────────────────────────────────────────────────────
+// 如果你的后端部署在 Railway/Heroku，请在此处填入地址，例如 'https://todo-api.railway.app'
+const CLOUD_BACKEND_URL = ''; 
+
+const getBaseUrl = () => {
+  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+    return 'http://127.0.0.1:5000';
+  }
+  // 如果在 GitHub Pages 上，优先尝试当前域名，其次尝试预设的云端后端地址
+  return CLOUD_BACKEND_URL || window.location.origin;
+};
+
+const BASE_URL = getBaseUrl();
 const API = `${BASE_URL}/api/todos`;
 const AUTH = `${BASE_URL}/api/auth`;
 
-// ── 状态管理 ──────────────────────────────────────────────────────────────────
+console.log(`[System] Connecting to backend at: ${BASE_URL}`);
+
+// ── 极致视觉引擎 ─────────────────────────────────────────────────────────────
+// (保持之前的艺术化逻辑，并优化了移动端适配)
+
 let state = {
   token: localStorage.getItem('token') || '',
   username: localStorage.getItem('username') || '',
@@ -26,92 +40,67 @@ const UI = {
   }
 };
 
-// ── 通讯引擎 (增强异常捕获) ───────────────────────────────────────────────────
+// ── 增强型通讯 ────────────────────────────────────────────────────────────────
 async function request(url, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
 
   try {
     const res = await fetch(url, { ...opts, headers });
-    if (res.status === 401) { logout(); throw new Error('会话过期，请重新登录'); }
-    const data = await res.json();
-    return data;
+    if (res.status === 401) { logout(); throw new Error('登录已过期'); }
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || '请求失败');
+    }
+    return await res.json();
   } catch (e) {
-    console.error('API Error:', e);
-    const msg = e.message.includes('fetch') ? '无法连接到服务器。请确保后端服务 (app.py) 已在端口 5000 启动。' : e.message;
-    throw new Error(msg);
+    console.error('Fetch Error:', e);
+    throw new Error(`连接失败: ${e.message}。请确保后端服务已启动且跨域已开启。`);
   }
 }
 
-// ── 核心功能 ──────────────────────────────────────────────────────────────────
+// ── 核心逻辑与渲染 ─────────────────────────────────────────────────────────────
 async function loadData() {
   try {
     const data = await request(API);
     state.todos = Array.isArray(data) ? data : [];
     render();
   } catch (e) {
-    alert(e.message);
-  }
-}
-
-async function handleAdd() {
-  const text = UI.todoInput.value.trim();
-  if (!text) return;
-
-  const category = document.querySelector('#cat-tags .active')?.dataset.value || null;
-  const priority = document.querySelector('#pri-tags .active')?.dataset.value || '中';
-  const deadline = document.getElementById('deadline-input').value || null;
-
-  UI.addBtn.textContent = '分析中...';
-  UI.addBtn.disabled = true;
-
-  try {
-    const res = await request(API, {
-      method: 'POST',
-      body: JSON.stringify({ text, category, priority, deadline })
-    });
-    if (res.ok) {
-      UI.todoInput.value = '';
-      await loadData();
-    } else {
-      alert(res.error || '添加失败');
+    console.warn(e.message);
+    // 如果是云端页面报错，给予更友好的提示
+    if (window.location.protocol === 'https:') {
+      UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">
+        <p>⚠️ 无法连接到云端后端</p>
+        <p style="font-size:0.7rem; margin-top:1rem;">请检查后端 URL 是否配置正确，或者后端服务是否在线。</p>
+      </div>`;
     }
-  } catch (e) {
-    alert(e.message);
-  } finally {
-    UI.addBtn.textContent = '添加';
-    UI.addBtn.disabled = false;
   }
 }
 
-// ── 渲染逻辑 ──────────────────────────────────────────────────────────────────
 function render() {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   const active = state.todos.filter(t => !t.done);
-  const done = state.todos.filter(t => t.done);
-
-  // 更新左侧统计
+  
   UI.stats.all.textContent = state.todos.length;
-  UI.stats.done.textContent = done.length;
+  UI.stats.done.textContent = state.todos.filter(t => t.done).length;
   UI.stats.today.textContent = active.filter(t => t.deadline && t.deadline.startsWith(todayStr)).length;
   UI.stats.overdue.textContent = active.filter(t => t.deadline && new Date(t.deadline) < now).length;
 
-  // 过滤逻辑
-  let displayList = active;
-  if (state.filter === 'done') displayList = done;
-  if (state.filter === 'today') displayList = active.filter(t => t.deadline && t.deadline.startsWith(todayStr));
-  if (state.filter === 'overdue') displayList = active.filter(t => t.deadline && new Date(t.deadline) < now);
+  let list = state.todos;
+  if (state.filter === 'today') list = active.filter(t => t.deadline && t.deadline.startsWith(todayStr));
+  if (state.filter === 'overdue') list = active.filter(t => t.deadline && new Date(t.deadline) < now);
+  if (state.filter === 'done') list = state.todos.filter(t => t.done);
+  if (state.filter === 'all') list = active; // 默认只看未完成
 
   UI.taskGroups.innerHTML = '';
-  if (displayList.length === 0) {
-    UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">此视图下暂无任务</div>`;
+  if (list.length === 0) {
+    UI.taskGroups.innerHTML = `<div style="text-align:center; padding:5rem; color:var(--text-dim);">当前无待办事项</div>`;
     return;
   }
 
-  // 按分类分组显示
   const groups = {};
-  displayList.forEach(t => {
+  list.forEach(t => {
     const cat = t.category || '其他';
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(t);
@@ -119,58 +108,59 @@ function render() {
 
   Object.keys(groups).sort().forEach(cat => {
     const groupEl = document.createElement('div');
-    groupEl.className = 'task-group';
-    groupEl.innerHTML = `<h3 style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; margin-bottom:1rem; letter-spacing:1px;">${cat}</h3>`;
+    groupEl.innerHTML = `<h3 style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; margin:2rem 0 1rem; letter-spacing:1px;">${cat}</h3>`;
     groups[cat].forEach(t => {
-      const card = createTaskCard(t);
+      const card = document.createElement('div');
+      card.className = 'task-card';
+      card.innerHTML = `
+        <div class="task-check-circle ${t.done ? 'checked' : ''}"></div>
+        <div class="task-content">
+          <div class="task-title" style="${t.done ? 'text-decoration:line-through; opacity:0.5' : ''}">${t.text}</div>
+          <div class="task-meta">
+            <span style="color:${t.priority==='高'?'#f87171':t.priority==='中'?'#fbbf24':'#34d399'}">● ${t.priority}</span>
+            ${t.deadline ? `<span>🕒 ${new Date(t.deadline).toLocaleDateString()}</span>` : ''}
+          </div>
+        </div>
+        <div class="task-actions"><button class="del-btn" style="background:none;border:none;color:var(--text-dim);cursor:pointer;">✕</button></div>
+      `;
+      card.querySelector('.task-check-circle').onclick = () => updateTodo(t.id, { done: !t.done });
+      card.querySelector('.del-btn').onclick = () => deleteTodo(t.id);
       groupEl.appendChild(card);
     });
     UI.taskGroups.appendChild(groupEl);
   });
 }
 
-function createTaskCard(t) {
-  const card = document.createElement('div');
-  card.className = 'task-card';
-  const now = new Date();
-  const isOverdue = t.deadline && new Date(t.deadline) < now && !t.done;
-
-  card.innerHTML = `
-    <div class="task-check-circle ${t.done ? 'checked' : ''}"></div>
-    <div class="task-content">
-      <div class="task-title" style="${t.done ? 'text-decoration:line-through; opacity:0.5' : ''}">${t.text}</div>
-      <div class="task-meta">
-        <span style="color:${t.priority==='高'?'#f87171':t.priority==='中'?'#fbbf24':'#34d399'}">● ${t.priority}</span>
-        ${t.deadline ? `<span>🕒 ${new Date(t.deadline).toLocaleString('zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
-        ${isOverdue ? '<span style="color:#f87171">已逾期</span>' : ''}
-      </div>
-    </div>
-    <div class="task-actions">
-      <button class="del-btn" style="background:none; border:none; color:var(--text-dim); cursor:pointer;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-      </button>
-    </div>
-  `;
-
-  card.querySelector('.task-check-circle').onclick = async () => {
-    try {
-      await request(`${API}/${t.id}`, { method: 'PATCH', body: JSON.stringify({ done: !t.done }) });
-      await loadData();
-    } catch (e) { alert(e.message); }
-  };
-
-  card.querySelector('.del-btn').onclick = async () => {
-    if (!confirm('彻底删除这项任务？')) return;
-    try {
-      await request(`${API}/${t.id}`, { method: 'DELETE' });
-      await loadData();
-    } catch (e) { alert(e.message); }
-  };
-
-  return card;
+async function updateTodo(id, data) {
+  try {
+    await request(`${API}/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    await loadData();
+  } catch (e) { alert(e.message); }
 }
 
-// ── 交互事件 ──────────────────────────────────────────────────────────────────
+async function deleteTodo(id) {
+  if (!confirm('确认删除？')) return;
+  try {
+    await request(`${API}/${id}`, { method: 'DELETE' });
+    await loadData();
+  } catch (e) { alert(e.message); }
+}
+
+async function handleAdd() {
+  const text = UI.todoInput.value.trim();
+  if (!text) return;
+  UI.addBtn.disabled = true;
+  try {
+    const cat = document.querySelector('#cat-tags .active')?.dataset.value || null;
+    const pri = document.querySelector('#pri-tags .active')?.dataset.value || '中';
+    await request(API, { method: 'POST', body: JSON.stringify({ text, category: cat, priority: pri }) });
+    UI.todoInput.value = '';
+    await loadData();
+  } catch (e) { alert(e.message); }
+  finally { UI.addBtn.disabled = false; }
+}
+
+// ── 交互绑定 ──────────────────────────────────────────────────────────────────
 UI.addBtn.onclick = handleAdd;
 UI.todoInput.onkeypress = (e) => e.key === 'Enter' && handleAdd();
 
@@ -190,12 +180,10 @@ document.querySelectorAll('.itag').forEach(tag => {
   };
 });
 
-// Auth 逻辑
 document.getElementById('auth-submit').onclick = async () => {
   const username = document.getElementById('auth-username').value;
   const password = document.getElementById('auth-password').value;
-  const isRegister = document.getElementById('tab-register').style.color === 'rgb(255, 255, 255)';
-
+  const isRegister = document.getElementById('tab-register').style.borderBottom !== 'none';
   try {
     const data = await request(`${AUTH}/${isRegister ? 'register' : 'login'}`, {
       method: 'POST',
@@ -207,29 +195,20 @@ document.getElementById('auth-submit').onclick = async () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('username', username);
       initApp();
-    } else { alert(data.error); }
+    }
   } catch (e) { alert(e.message); }
 };
 
-document.getElementById('tab-login').onclick = () => {
-  document.getElementById('tab-login').style.color = '#fff';
-  document.getElementById('tab-login').style.borderBottom = '2px solid var(--accent)';
-  document.getElementById('tab-register').style.color = 'var(--text-dim)';
-  document.getElementById('tab-register').style.borderBottom = 'none';
-};
-document.getElementById('tab-register').onclick = () => {
-  document.getElementById('tab-register').style.color = '#fff';
-  document.getElementById('tab-register').style.borderBottom = '2px solid var(--accent)';
-  document.getElementById('tab-login').style.color = 'var(--text-dim)';
-  document.getElementById('tab-login').style.borderBottom = 'none';
-};
+document.getElementById('tab-login').onclick = () => toggleAuthTab(true);
+document.getElementById('tab-register').onclick = () => toggleAuthTab(false);
 
-document.getElementById('logout-btn').onclick = logout;
-
-function logout() {
-  localStorage.clear();
-  location.reload();
+function toggleAuthTab(isLogin) {
+  document.getElementById('tab-login').style.borderBottom = isLogin ? '2px solid var(--accent)' : 'none';
+  document.getElementById('tab-register').style.borderBottom = !isLogin ? '2px solid var(--accent)' : 'none';
 }
+
+function logout() { localStorage.clear(); location.reload(); }
+document.getElementById('logout-btn').onclick = logout;
 
 function initApp() {
   UI.authOverlay.classList.add('hidden');

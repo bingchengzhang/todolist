@@ -13,7 +13,7 @@ from routes.stats import bp as stats_bp
 FRONTEND = os.path.join(os.path.dirname(__file__), 'frontend')
 
 app = Flask(__name__, static_folder=FRONTEND, static_url_path='')
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 init_db()
 app.register_blueprint(todos_bp)
