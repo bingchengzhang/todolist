@@ -6,7 +6,14 @@ DATABASE_URL = os.environ['DATABASE_URL']
 
 
 def get_connection():
-    return psycopg2.connect(DATABASE_URL)
+    try:
+        url = os.environ.get('DATABASE_URL')
+        if not url:
+            raise ValueError("DATABASE_URL variable is missing")
+        return psycopg2.connect(url, sslmode='require')
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        raise
 
 
 def init_db():

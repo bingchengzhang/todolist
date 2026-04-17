@@ -6,7 +6,7 @@ from functools import wraps
 from flask import request, jsonify
 from models.user import create_user, get_user_by_username
 
-SECRET = os.environ.get('JWT_SECRET', 'change-me-in-production')
+SECRET = os.environ.get('JWT_SECRET', 'a8f2k9x3m1p7q4n6')
 
 
 def register(username: str, password: str) -> dict:
