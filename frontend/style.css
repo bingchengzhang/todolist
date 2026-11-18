@@ -20,7 +20,6 @@ body {
   min-height: 100vh;
 }
 
-/* ── 动态背景光球 ─────────────────────────────────────── */
 .bg-blobs {
   position: fixed;
   inset: 0;
@@ -43,7 +42,6 @@ body {
   to { transform: translate(100px, 50px) scale(1.2); }
 }
 
-/* ── 粒子画板 ────────────────────────────────────────── */
 #particle-canvas {
   position: fixed;
   inset: 0;
@@ -51,7 +49,6 @@ body {
   z-index: 9999;
 }
 
-/* ── 布局与排版 ───────────────────────────────────────── */
 .main-container {
   max-width: 1000px;
   margin: 0 auto;
@@ -69,7 +66,6 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-/* ── 统计项交互 ───────────────────────────────────────── */
 .stat-item {
   background: var(--bg-surface);
   backdrop-filter: blur(10px);
@@ -86,7 +82,6 @@ body {
   box-shadow: 0 10px 30px -10px var(--accent-glow);
 }
 
-/* ── 输入框 ──────────────────────────────────────────── */
 .command-bar {
   background: rgba(30, 41, 59, 0.4);
   backdrop-filter: blur(20px);
@@ -114,7 +109,6 @@ body {
 }
 #add-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
 
-/* ── 任务卡片动画 ─────────────────────────────────────── */
 .task-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-glass);
@@ -158,10 +152,6 @@ body {
 .task-title { font-size: 1.05rem; font-weight: 500; margin-bottom: 0.2rem; transition: 0.3s; }
 .task-meta { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 1rem; }
 
-.task-actions { opacity: 0; transition: 0.2s; }
-.task-card:hover .task-actions { opacity: 1; }
-
-/* ── 通用 ────────────────────────────────────────────── */
 .hidden { display: none !important; }
 .itag { cursor: pointer; padding: 0.3rem 0.8rem; border-radius: 100px; background: var(--bg-surface); font-size: 0.7rem; border: 1px solid var(--border-glass); color: var(--text-dim); }
 .itag.active { background: var(--accent); color: #fff; }

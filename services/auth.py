@@ -1,9 +1,11 @@
 import os
-import bcrypt
-import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import request, jsonify
+
+import bcrypt
+import jwt
+from flask import jsonify, request
+
 from models.user import create_user, get_user_by_username
 
 SECRET = os.environ.get('JWT_SECRET', 'a8f2k9x3m1p7q4n6')
@@ -28,14 +30,20 @@ def register(username: str, password: str) -> dict:
 def login(username: str, password: str) -> dict:
     username = username.strip().lower()
     user = get_user_by_username(username)
-    if not user or not bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
+    password_ok = user and bcrypt.checkpw(
+        password.encode(), user['password_hash'].encode(),
+    )
+    if not password_ok:
         raise ValueError('用户名或密码错误')
     return {'ok': True, 'token': _make_token(user['id']), 'username': user['username']}
 
 
 def _make_token(user_id: int) -> str:
     return jwt.encode(
-        {'sub': str(user_id), 'exp': datetime.now(timezone.utc) + timedelta(days=30)},
+        {
+            'sub': str(user_id),
+            'exp': datetime.now(timezone.utc) + timedelta(days=30),
+        },
         SECRET,
         algorithm='HS256',
     )

@@ -1,6 +1,13 @@
-// ── 配置与状态 ─────────────────────────────────────────────────────────────
 const PROD_URL = 'https://web-production-f1ba1.up.railway.app';
-const getBaseUrl = () => (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') ? 'http://127.0.0.1:5000' : PROD_URL;
+
+function getBaseUrl() {
+  const host = window.location.hostname;
+  if (host === '127.0.0.1' || host === 'localhost') {
+    return 'http://127.0.0.1:5000';
+  }
+  return PROD_URL;
+}
+
 const BASE_URL = getBaseUrl();
 const API = `${BASE_URL}/api/todos/`;
 const AUTH = `${BASE_URL}/api/auth/`;
@@ -11,6 +18,9 @@ let state = {
   todos: [],
   filter: 'all'
 };
+
+// 默认停在登录页签。不能靠 borderBottom 判断：写了 border: none 时，读回来是空字符串。
+let authMode = 'login';
 
 const UI = {
   authOverlay: document.getElementById('auth-overlay'),
@@ -26,7 +36,6 @@ const UI = {
   }
 };
 
-// ── 物理粒子引擎 ─────────────────────────────────────────────────────────────
 const particles = (function() {
   const canvas = document.getElementById('particle-canvas');
   const ctx = canvas.getContext('2d');
@@ -55,7 +64,7 @@ const particles = (function() {
     for (let i = pts.length - 1; i >= 0; i--) {
       const p = pts[i];
       p.x += p.vx; p.y += p.vy;
-      p.vy += 0.25; // Gravity
+      p.vy += 0.25;
       p.life -= p.decay;
       if (p.life <= 0) { pts.splice(i, 1); continue; }
       ctx.fillStyle = p.color;
@@ -73,7 +82,6 @@ const particles = (function() {
   return { spawn };
 })();
 
-// ── 通讯层 (含乐观更新支持) ────────────────────────────────────────────────────
 async function request(url, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
@@ -95,28 +103,23 @@ async function loadData() {
   }
 }
 
-// ── 交互核心 ──────────────────────────────────────────────────────────────────
 async function toggleTodo(id, el) {
   const todo = state.todos.find(t => t.id === id);
   if (!todo) return;
 
-  // 1. 物理反馈
   const rect = el.getBoundingClientRect();
   particles.spawn(rect.left + 12, rect.top + 12, todo.done ? '#94a3b8' : '#8b5cf6');
 
-  // 2. 乐观更新 (Optimistic Update)
   const oldStatus = todo.done;
   todo.done = !todo.done;
-  render(); // 立刻重新渲染
+  render();
 
-  // 3. 后端同步
   const res = await request(`${API}${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ done: todo.done })
   });
-  
+
   if (!res || !res.ok) {
-    // 失败则回滚
     todo.done = oldStatus;
     render();
     alert('同步失败，已回滚状态');
@@ -146,7 +149,6 @@ async function handleAdd() {
   UI.addBtn.disabled = false;
 }
 
-// ── 渲染器 ──────────────────────────────────────────────────────────────────
 function render() {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -195,7 +197,6 @@ function render() {
   });
 }
 
-// ── 初始化与事件 ──────────────────────────────────────────────────────────────
 UI.addBtn.onclick = handleAdd;
 UI.todoInput.onkeypress = (e) => e.key === 'Enter' && handleAdd();
 
@@ -218,7 +219,7 @@ document.querySelectorAll('.itag').forEach(tag => {
 document.getElementById('auth-submit').onclick = async () => {
   const username = document.getElementById('auth-username').value;
   const password = document.getElementById('auth-password').value;
-  const isRegister = document.getElementById('tab-register').style.borderBottom !== 'none';
+  const isRegister = authMode === 'register';
   const data = await request(`${AUTH}${isRegister ? 'register' : 'login'}`, {
     method: 'POST',
     body: JSON.stringify({ username, password })
@@ -237,6 +238,7 @@ document.getElementById('auth-submit').onclick = async () => {
 document.getElementById('tab-login').onclick = () => toggleAuthTab(true);
 document.getElementById('tab-register').onclick = () => toggleAuthTab(false);
 function toggleAuthTab(isLogin) {
+  authMode = isLogin ? 'login' : 'register';
   document.getElementById('tab-login').style.borderBottom = isLogin ? '2px solid var(--accent)' : 'none';
   document.getElementById('tab-register').style.borderBottom = !isLogin ? '2px solid var(--accent)' : 'none';
 }

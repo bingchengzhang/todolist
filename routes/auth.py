@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify
-from services.auth import register, login
+from flask import Blueprint, jsonify, request
+
+from services.auth import login, register
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -8,7 +9,8 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 def do_register():
     data = request.get_json(silent=True) or {}
     try:
-        return jsonify(register(data.get('username', ''), data.get('password', ''))), 201
+        body = register(data.get('username', ''), data.get('password', ''))
+        return jsonify(body), 201
     except ValueError as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
 

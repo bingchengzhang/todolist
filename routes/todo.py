@@ -1,8 +1,12 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
+
 from services.auth import require_auth
 from services.todo import (
-    create_todo, list_todos,
-    complete_todo, change_priority, change_deadline,
+    change_deadline,
+    change_priority,
+    complete_todo,
+    create_todo,
+    list_todos,
     remove_todo,
 )
 
@@ -47,7 +51,8 @@ def patch_todo(todo_id, user_id):
         try:
             return jsonify(change_priority(todo_id, data['priority'], user_id))
         except (ValueError, LookupError) as e:
-            return jsonify({'ok': False, 'error': str(e)}), (400 if isinstance(e, ValueError) else 404)
+            status = 400 if isinstance(e, ValueError) else 404
+            return jsonify({'ok': False, 'error': str(e)}), status
 
     if 'deadline' in data:
         try:

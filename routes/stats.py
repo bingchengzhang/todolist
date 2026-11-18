@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
-from services.auth import require_auth
+
 from models.stats import get_completion_heatmap
+from services.auth import require_auth
 
 bp = Blueprint('stats', __name__, url_prefix='/api/stats')
 

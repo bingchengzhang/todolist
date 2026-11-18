@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-  <title>Todo Art Dashboard</title>
+  <title>待办</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- 动态背景 -->
   <div class="bg-blobs">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -18,28 +17,25 @@
 
   <canvas id="particle-canvas"></canvas>
 
-  <!-- ── Auth Overlay ─────────────────────────────── -->
   <div id="auth-overlay" class="auth-overlay">
     <div class="auth-card">
-      <h2 style="margin-bottom: 2rem; letter-spacing: 2px;">✦ 进入空间</h2>
+      <h2 style="margin-bottom: 2rem; letter-spacing: 2px;">登录</h2>
       <div id="auth-tabs" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
         <button id="tab-login" style="flex:1; background:none; border:none; color:#fff; cursor:pointer; font-weight:600; border-bottom: 2px solid var(--accent);">登录</button>
         <button id="tab-register" style="flex:1; background:none; border:none; color:var(--text-dim); cursor:pointer;">注册</button>
       </div>
       <input id="auth-username" type="text" placeholder="用户名" />
       <input id="auth-password" type="password" placeholder="密码" />
-      <button id="auth-submit" class="auth-btn">开启计划</button>
+      <button id="auth-submit" class="auth-btn">提交</button>
     </div>
   </div>
 
-  <!-- ── Main App ─────────────────────────────────── -->
   <div id="app" class="hidden">
     <div class="main-container">
-      
+
       <aside class="sidebar">
         <div class="greeting-area" style="margin-bottom: 3rem;">
           <h1 id="greeting-text">你好，<span id="username-display"></span></h1>
-          <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">今天是探索新可能的完美时刻。</p>
         </div>
 
         <div class="stat-group">
@@ -57,18 +53,18 @@
           </div>
           <div class="stat-item" data-filter="overdue">
             <span style="font-size: 1.5rem; font-weight: 700; display: block;" id="stat-overdue">0</span>
-            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">逾期未毕</span>
+            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">已逾期</span>
           </div>
         </div>
 
-        <button id="logout-btn" style="margin-top: 3rem; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:0.75rem; letter-spacing:1px;">登出系统</button>
+        <button id="logout-btn" style="margin-top: 3rem; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:0.75rem; letter-spacing:1px;">退出</button>
       </aside>
 
       <main class="content-area" style="display: flex; flex-direction: column; gap: 2.5rem;">
-        
+
         <section>
           <div class="command-bar">
-            <input id="todo-input" type="text" placeholder="键入新任务，回车即存..." />
+            <input id="todo-input" type="text" placeholder="添加任务" />
             <button id="add-btn">添加</button>
           </div>
           <div class="input-options" style="display: flex; gap: 0.75rem; margin-top: 1rem; padding-left: 0.5rem;">
