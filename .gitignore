@@ -1,11 +1,10 @@
 # Environment
 .env
+.env.local
+.env.*.local
 
 # Claude Code
 .claude/
-
-# Database
-backend/data/todos.db
 
 # Python
 __pycache__/
@@ -17,6 +16,15 @@ env/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite3
 
 # OS
 .DS_Store

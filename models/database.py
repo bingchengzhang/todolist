@@ -1,19 +1,13 @@
 import os
-import psycopg2
-import psycopg2.extras
 
-DATABASE_URL = os.environ['DATABASE_URL']
+import psycopg2
 
 
 def get_connection():
-    try:
-        url = os.environ.get('DATABASE_URL')
-        if not url:
-            raise ValueError("DATABASE_URL variable is missing")
-        return psycopg2.connect(url, sslmode='require')
-    except Exception as e:
-        print(f"Database connection error: {e}")
-        raise
+    url = os.environ.get('DATABASE_URL')
+    if not url:
+        raise ValueError('DATABASE_URL variable is missing')
+    return psycopg2.connect(url, sslmode='require')
 
 
 def init_db():
@@ -44,7 +38,10 @@ def init_db():
     ''')
 
     cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS deadline TIMESTAMP')
-    cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)')
+    cur.execute(
+        'ALTER TABLE todos ADD COLUMN IF NOT EXISTS '
+        'user_id INTEGER REFERENCES users(id)'
+    )
     cur.execute('ALTER TABLE todos ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP')
 
     conn.commit()

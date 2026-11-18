@@ -4,7 +4,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.env')))
 
 DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions'
 PROMPT = '''你是一个任务管理助手。
@@ -18,16 +18,28 @@ VALID_PRIORITIES = {'高', '中', '低'}
 
 
 CATEGORY_KEYWORDS = {
-    '学习': ['复习', '学习', '作业', '考试', '读书', '笔记', '课', '练习', '背', '刷题', '论文', '报告'],
-    '工作': ['会议', '需求', '上班', '项目', '客户', '汇报', '邮件', '文档', '代码', '开发', '测试', '部署'],
-    '生活': ['买', '吃', '喝', '睡', '运动', '健身', '购物', '做饭', '洗', '打扫', '医院', '看病', '家'],
+    '学习': [
+        '复习', '学习', '作业', '考试', '读书', '笔记',
+        '课', '练习', '背', '刷题', '论文', '报告',
+    ],
+    '工作': [
+        '会议', '需求', '上班', '项目', '客户', '汇报',
+        '邮件', '文档', '代码', '开发', '测试', '部署',
+    ],
+    '生活': [
+        '买', '吃', '喝', '睡', '运动', '健身',
+        '购物', '做饭', '洗', '打扫', '医院', '看病', '家',
+    ],
 }
-PRIORITY_HIGH_KEYWORDS = ['紧急', '立刻', '马上', '今天', '明天', '截止', '重要', '考试', '面试', '汇报']
-PRIORITY_LOW_KEYWORDS  = ['随便', '有空', '以后', '下次', '可选', '顺便']
+PRIORITY_HIGH_KEYWORDS = [
+    '紧急', '立刻', '马上', '今天', '明天',
+    '截止', '重要', '考试', '面试', '汇报',
+]
+PRIORITY_LOW_KEYWORDS = ['随便', '有空', '以后', '下次', '可选', '顺便']
 
 
 def analyze(text: str) -> dict:
-    """Call DeepSeek API to classify the task. Falls back to keyword matching on any error."""
+    """Classify a task with DeepSeek. On any failure, use keyword matching."""
     try:
         return _call_deepseek(text)
     except Exception:
@@ -70,7 +82,7 @@ def _call_deepseek(text: str) -> dict:
     resp.raise_for_status()
 
     raw = resp.json()['choices'][0]['message']['content'].strip()
-    # Strip markdown code fences if present
+    # Drop a markdown fence if the model wraps the JSON.
     if raw.startswith('```'):
         raw = raw.split('```')[1]
         if raw.startswith('json'):
@@ -79,8 +91,6 @@ def _call_deepseek(text: str) -> dict:
 
     category = data.get('category', '其他')
     priority = data.get('priority', '中')
-
-    # Validate values are within allowed set
     if category not in VALID_CATEGORIES:
         category = '其他'
     if priority not in VALID_PRIORITIES:

@@ -1,7 +1,10 @@
 from models.todo import (
-    insert_todo, get_all_todos,
-    update_todo_done, update_todo_priority, update_todo_deadline,
     delete_todo,
+    get_all_todos,
+    insert_todo,
+    update_todo_deadline,
+    update_todo_done,
+    update_todo_priority,
 )
 from services.ai import analyze
 
@@ -9,7 +12,13 @@ VALID_CATEGORIES = {'工作', '学习', '生活', '其他'}
 VALID_PRIORITIES = {'高', '中', '低'}
 
 
-def create_todo(text: str, user_id: int, deadline=None, category=None, priority=None) -> dict:
+def create_todo(
+    text: str,
+    user_id: int,
+    deadline=None,
+    category=None,
+    priority=None,
+) -> dict:
     if not text or not text.strip():
         raise ValueError('任务内容不能为空')
     if len(text) > 200:
@@ -21,7 +30,9 @@ def create_todo(text: str, user_id: int, deadline=None, category=None, priority=
     final_category = category if category in VALID_CATEGORIES else ai_result['category']
     final_priority = priority if priority in VALID_PRIORITIES else ai_result['priority']
 
-    todo_id = insert_todo(text, final_category, final_priority, deadline or None, user_id)
+    todo_id = insert_todo(
+        text, final_category, final_priority, deadline or None, user_id,
+    )
     return {
         'ok': True,
         'id': todo_id,

@@ -19,19 +19,12 @@
     </filter>
   </defs>
 
-  <!-- Background -->
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-
-  <!-- Ambient glow -->
   <ellipse cx="256" cy="230" rx="260" ry="220" fill="url(#orb)"/>
-
-  <!-- Glass card -->
   <rect x="88" y="88" width="336" height="336" rx="72"
         fill="url(#card-fill)"
         stroke="rgba(255,255,255,0.14)"
         stroke-width="1.5"/>
-
-  <!-- Checkmark -->
   <polyline
     points="144,258 214,328 368,174"
     fill="none"

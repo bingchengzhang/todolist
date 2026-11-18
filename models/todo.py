@@ -1,4 +1,5 @@
 import psycopg2.extras
+
 from .database import get_connection
 
 
@@ -45,12 +46,14 @@ def update_todo_done(todo_id, done, user_id):
     cur = conn.cursor()
     if done:
         cur.execute(
-            'UPDATE todos SET done = %s, completed_at = NOW() WHERE id = %s AND user_id = %s',
+            'UPDATE todos SET done = %s, completed_at = NOW() '
+            'WHERE id = %s AND user_id = %s',
             (done, todo_id, user_id)
         )
     else:
         cur.execute(
-            'UPDATE todos SET done = %s, completed_at = NULL WHERE id = %s AND user_id = %s',
+            'UPDATE todos SET done = %s, completed_at = NULL '
+            'WHERE id = %s AND user_id = %s',
             (done, todo_id, user_id)
         )
     affected = cur.rowcount
